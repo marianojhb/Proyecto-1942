@@ -1,0 +1,1330 @@
+// main.cpp
+
+#include "Game.h"
+#include <cstdlib>
+
+int main() {
+
+  std::srand((unsigned)std::time(0));
+
+  Game game;
+  game.run();
+
+
+  return 0;
+}
+
+
+
+
+#pragma once
+#include <SFML/Graphics.hpp>
+
+class Avion /// CLASE ABSTRACTA, ["Avionabel" o "IAvion"]
+{
+  public:
+    virtual void update() = 0; /// VIRTUAL PURO
+    virtual void cmd() = 0; /// VIRTUAL PURO
+    virtual sf::Vector2f getPosition() const = 0; /// VIRTUAL PURO
+
+  protected:
+    sf::Texture *_texture;
+    sf::Sprite _sprite;
+    sf::Vector2f _velocity;
+    bool _shoot;
+
+};
+
+#include "Bullet.h"
+
+Bullet::Bullet(){}
+
+Bullet::Bullet(int horizontal,int vertical, int velocidad)
+{
+  _texture = new sf::Texture;
+  _texture->loadFromFile("assets/sprites/1942-sprites-projectiles.png");
+  _sprite.setTexture(*_texture);
+  _sprite.setTextureRect({23,16,11,10}); // tamaño x 3 = 48*48
+  _sprite.setScale(3,3);
+  _sprite.setPosition(horizontal,vertical);
+  _velocidad = velocidad;
+}
+
+void Bullet::update()
+{
+  _sprite.move(0,_velocidad);
+
+}
+
+void Bullet::draw(sf::RenderTarget &target, sf::RenderStates states)const
+{
+  target.draw(_sprite, states);
+}
+
+sf::FloatRect Bullet::getBounds()const
+{
+  return _sprite.getGlobalBounds();
+}
+
+
+/*
+*/
+
+Bullet::Bullet(sf::Vector2f position)
+{
+  _texture = new sf::Texture;
+  _texture->loadFromFile("assets/sprites/1942-sprites-projectiles.png");
+  _sprite.setTexture(*_texture);
+  _sprite.setTextureRect({23,16,11,10}); // tamaño x 3 = 48*48
+  _sprite.setScale(3,3);
+  _sprite.setPosition(position);
+  _velocidad = -7;
+}
+
+#pragma once
+#include <SFML/Graphics.hpp>
+#include "Collisionable.h"
+
+
+class Bullet: public sf::Drawable, public Collisionable
+{
+  public:
+    Bullet();
+    Bullet(int horizontal,int vertical, int velocidad);
+    Bullet(sf::Vector2f position);
+    //Bullet(int x ,int y, sf::Texture &texture, sf::IntRect intReact , int velociad);
+    void update();
+    void draw(sf::RenderTarget &target, sf::RenderStates states)const override;
+    sf::FloatRect getBounds() const override;
+  private:
+    sf::Sprite _sprite;
+    sf::Texture *_texture;
+    int _velocidad;
+
+};
+
+// Enemy.cpp
+
+#include <iostream>
+#include "Enemy.h"
+
+Enemy::Enemy()
+{
+  _texture = new sf::Texture;
+  _texture->loadFromFile("assets/sprites/1942-sprites-enemy.png");
+  _sprite.setTexture(*_texture);
+  _sprite.setTextureRect({59,57,15,14});
+  _sprite.setScale(3,3);
+  _sprite.setPosition( std::rand()%600+1,0-48-48);
+  _velocity.x = std::rand()%2 ? (float)(std::rand()%30)/10+1.0 :  - (float)(std::rand()%30)/10+1.0;
+//  _sprite.setPosition( 320,400);
+//  _velocity.x = 0.5;
+  _velocity.y = 3.2f;
+}
+
+void Enemy::cmd() {
+
+  // rebote en los costados:
+  if (_sprite.getPosition().x + getBounds().width < 0 + getBounds().width/2  ) {
+    _velocity.x = -_velocity.x;
+  }
+  if (_sprite.getPosition().x + getBounds().width > 600 + getBounds().width/2) {
+    _velocity.x = -_velocity.x;
+  }
+  if (_sprite.getPosition().y - getBounds().height > 800){
+    respawn();
+  }
+
+
+}
+
+void Enemy::update()
+{
+
+  _sprite.move(_velocity.x,_velocity.y);
+}
+
+void Enemy::respawn(){
+
+  _sprite.setPosition(std::rand()%600,0-48-48);
+//  _velocity.x = std::rand()%2 ? (float)(std::rand()%30)/10+1.0 :  - (float)(std::rand()%30)/10+1.0;
+}
+
+void Enemy::draw(sf::RenderTarget &target , sf::RenderStates states)const {
+  target.draw(_sprite, states);
+}
+
+sf::FloatRect Enemy::getBounds()const {
+  return _sprite.getGlobalBounds();
+}
+
+sf::Vector2f Enemy::getBulletOrigin()
+{
+  return {_sprite.getPosition().x + 20 ,_sprite.getPosition().y+54};
+}
+
+sf::Vector2f Enemy::getPosition() const
+{
+  return _sprite.getPosition();
+}
+// Enemy.h
+
+#pragma once
+#include <SFML/Graphics.hpp>
+#include <string>
+#include "Collisionable.h"
+#include "Avion.h"
+
+class Enemy: public sf::Drawable, public Collisionable, public Avion
+{
+    public:
+        Enemy();
+        void cmd() override; /// HEREDA DE AVION
+        void update() override; /// HEREDA DE AVION
+        void draw(sf::RenderTarget &target , sf::RenderStates states) const override;/// HEREDA DE DIBUJABLE
+        sf::FloatRect getBounds() const override; /// HEREDA DE COLLISIONABLE
+        void respawn();
+        sf::Vector2f getBulletOrigin();
+        sf::Vector2f getPosition() const override;
+
+    private:
+        sf::Vector2f _newPosition;
+
+};
+#include "EnemyB.h"
+#include "PowerUp.h"
+#include <string>
+#include <iostream>
+
+EnemyB::EnemyB()
+{
+  _texture = new sf::Texture;
+  _texture->loadFromFile("assets/sprites/1942-sprites-enemy.png");
+  _sprite.setTexture(*_texture);
+  _sprite.setTextureRect({426,324,31,23});
+  _velocity = {3,3};
+  _sprite.setPosition(std::rand()%600,0-48-48); /// APARECE EN EL LADO NEGATIVO.
+  _sprite.setScale(2,2);
+  _sprite.setOrigin(_sprite.getGlobalBounds().width/2,_sprite.getGlobalBounds().height/2);
+  _timeRespawn = 60*2;
+  _canShoot = false;
+  _frameExplosion = 0.f;
+
+   // _state = EnemyBState::Vivo;
+}
+
+void EnemyB::cmd()
+{
+
+  _timeRespawn--;
+
+  if(_timeRespawn > 0)
+  {
+    _canShoot = false;
+  }
+
+  if (_timeRespawn < 0 )
+  {
+    _timeRespawn = 60*2;
+    _canShoot = true;
+  }
+
+
+  /// SI LA NUEVA POS EN X ESTA ADELANTE DE LA ACUTUAL POSICION
+  if(_newPosition.x > _sprite.getPosition().x){
+    _sprite.move(_velocity.x,0);
+    _state = EnemyBState::Vivo;
+  }
+  /// SI LA NUEVA POS EN X ESTA ATRAS DE LA ACTUAL POSICION
+  if(_newPosition.x <  _sprite.getPosition().x){
+    _sprite.move(-_velocity.x,0);
+    _state = EnemyBState::Vivo;
+  }
+
+  /// SI LA NUEVA POS EN Y  ES MAYOR  DE LA ACTUAL POSICION
+  if(_newPosition.y > _sprite.getPosition().y){
+    _sprite.move(0,_velocity.y);
+    _state = EnemyBState::Vivo;
+  }
+  /// SI LA NUEVA POS EN Y  ES MENOR DE LA ACTUAL POSICION
+  if(_newPosition.y < _sprite.getPosition().y){
+    _sprite.move(0,-_velocity.y);
+    _state = EnemyBState::Vivo;
+  }
+
+  ///CORREGIR: SI LA DIFERENCIA ABSOLUTA ES MENOR ENTRE LA POSICION ACTUAL Y LA NUEVA POSICION,
+  /// NOS MOVEMOS EN
+  if (std::abs(_newPosition.x - _sprite.getPosition().x) <= 15)
+  {
+    //_sprite.setPosition(_newPosition.x,_sprite.getPosition().y);
+    _newPosition = {std::rand() % 400 + _sprite.getGlobalBounds().width, std::rand() % 400 + _sprite.getGlobalBounds().height};
+  }
+  if (std::abs(_newPosition.y - _sprite.getPosition().y) <= 15)
+  {
+    //_sprite.setPosition(_sprite.getPosition().x,_newPosition.y);
+    _newPosition = {std::rand() % 400 + _sprite.getGlobalBounds().width, std::rand() % 400 + _sprite.getGlobalBounds().height};
+  }
+
+}
+
+void EnemyB::update()
+{
+
+//  inicioEnemyB();
+
+
+
+  /// CREAMOS LAS BALAS DE VECTOR DEL ENEMIGO
+  for ( int i = 0; i < _vEnemiesB.size() ; i++)
+  {
+    if(_vEnemiesB[i]->shot())
+    {
+      _bullets_vEnemyB.push_back(new Bullet(_vEnemiesB[i]->getPosition().x -50,_vEnemiesB[i]->getPosition().y - 30,7));
+    }
+  }
+
+  /// ACTUALIZAMOS LOS COMANDOS
+  for ( int i = 0 ; i < _vEnemiesB.size() ;  i++)
+  {
+    _vEnemiesB[i]->update();
+  }
+
+  /// DIBUJAMOS LAS BALAS DEL ENEMIGO
+  for ( int i = 0 ; i < _bullets_vEnemyB.size() ; i++)
+  {
+    _bullets_vEnemyB[i]->update();
+  }
+
+  /// ELIMINAMOS DE LA PANTALLA
+  for ( int i = 0 ;  i < _bullets_vEnemyB.size() ; i++ )
+  {
+    if(_bullets_vEnemyB[i]->getBounds().top + _bullets_vEnemyB[i]->getBounds().height > 800)
+    {
+      //std::cout<<"TAMANIO DE BALAS V-ENEMIGOS" <<_bullets_vEnemyB.size()<<std::endl;
+      delete _bullets_vEnemyB[i];
+      _bullets_vEnemyB.erase(_bullets_vEnemyB.begin()+i);
+    }
+  }
+
+}
+
+void EnemyB::setStateMuerto()
+{
+//    _state = EnemyBState::Muerto;
+}
+
+void EnemyB::respawn()
+{
+//    _sound.playExplosionSmall();
+//    //_explosion = new Explosion(_sprite.getPosition().x, _sprite.getPosition().y);
+//    //_explosion->smallExplosion(_frameExplosion);
+//
+//    _sprite.setPosition(std::rand()%600,0-48-48);
+//    _timeRespawn = 60*2;
+}
+
+bool EnemyB::shot()
+{
+  return _canShoot;
+}
+
+sf::Vector2f EnemyB::getPosition()const
+{
+  return _sprite.getPosition();
+}
+
+sf::FloatRect EnemyB::getBounds()const
+{
+  return _sprite.getGlobalBounds();
+}
+
+void EnemyB::draw(sf::RenderTarget &target , sf::RenderStates states)const
+{
+  target.draw(_sprite,states);
+}
+
+void EnemyB::inicioEnemyB(int frames)
+{
+  ////////////////////////////////////////////////////////////////////////
+  /// CREAMOS EL VECTOR DE ENEMIGOS: CON UN CONTADOR ...
+  if (frames%120 == 0)
+  {
+    if ( _vEnemiesB.size() < 2)
+    {
+      _vEnemiesB.push_back(new EnemyB());
+
+
+      std::cout << " TAMANIO DE VECTOR -> ENEMY B" << _vEnemiesB.size() << std::endl;
+    }
+  }
+
+
+}
+
+/*
+1.CALCUALAR EL ANGULO DE LA DIRECCION :
+    _angle = atan2(_velocity.y, _velocity.x);
+
+2. _angle = _angle * (180 / M_PI);
+    Ajustar el rango del �ngulo: Si angle es negativo, puedes convertirlo a un     �ngulo positivo sumando 360.
+
+3.
+Asignar el �ngulo a un horizonte: Divide los 360 grados en 16 partes (22.5 grados cada una) para mapear el �ngulo a los horizontes. Por ejemplo:
+
+    if (_angle < 0) {
+    _angle += 360;
+    }
+
+4.
+Esto funciona al redondear el �ngulo a la parte m�s cercana de 22.5 grados y mapearlo a un valor entre 1 y 16.
+
+int horizonte = static_cast<int>((angle + 11.25) / 22.5) % 16 + 1;
+*/
+/*
+void EnemyB::update()
+{
+
+///////////////////////////////////////////////////////////////////////////////
+/// velocidad x = H . cos&.
+/// velocidad y = H . sen&.
+    _angle = atan2(_newPosition.y, _newPosition.x);
+
+    _angle = _angle * (180 / M_PI);
+
+    _horizonte = static_cast<int>((_angle + 11.25) / 22.5) % 16 + 1;
+
+///////////////////////////////////////////////////////////////////////////////
+    switch (_horizonte)
+    {
+        case 1:
+            std::cout << "HORIZONTE " << _horizonte << std::endl;
+            std::cout << "Angulo" << _angle << std::endl;
+
+            break;
+        case 2:
+            std::cout << "HORIZONTE " << _horizonte << std::endl;
+            std::cout << "Angulo" << _angle << std::endl;
+            break;
+        case 3:
+            std::cout << "HORIZONTE " << _horizonte << std::endl;
+            std::cout << "Angulo" << _angle << std::endl;
+            break;
+        case 4:
+            std::cout << "HORIZONTE " << _horizonte << std::endl;
+            std::cout << "Angulo" << _angle << std::endl;
+            break;
+        case 5:
+            std::cout << "HORIZONTE " << _horizonte << std::endl;
+            std::cout << "Angulo" << _angle << std::endl;
+            break;
+        case 6:
+            std::cout << "HORIZONTE " << _horizonte << std::endl;
+            std::cout << "Angulo" << _angle << std::endl;
+            break;
+        case 7:
+            std::cout << "HORIZONTE " << _horizonte << std::endl;
+            std::cout << "Angulo" << _angle << std::endl;
+            break;
+        case 8:
+            std::cout << "HORIZONTE " << _horizonte << std::endl;
+            std::cout << "Angulo" << _angle << std::endl;
+            break;
+        case 9:
+            std::cout << "HORIZONTE " << _horizonte << std::endl;
+            std::cout << "Angulo" << _angle << std::endl;
+            break;
+        case 10:
+            std::cout << "HORIZONTE " << _horizonte << std::endl;
+            std::cout << "Angulo" << _angle << std::endl;
+            break;
+        case 11:
+            std::cout << "HORIZONTE " << _horizonte << std::endl;
+            std::cout << "Angulo" << _angle << std::endl;
+            break;
+        case 12:
+            std::cout << "HORIZONTE " << _horizonte << std::endl;
+            std::cout << "Angulo" << _angle << std::endl;
+            break;
+        case 13:
+            std::cout << "HORIZONTE " << _horizonte << std::endl;
+            std::cout << "Angulo" << _angle << std::endl;
+            break;
+        case 14:
+            std::cout << "HORIZONTE " << _horizonte << std::endl;
+            std::cout << "Angulo" << _angle << std::endl;
+            break;
+        case 15:
+            std::cout << "HORIZONTE " << _horizonte << std::endl;
+            std::cout << "Angulo" << _angle << std::endl;
+            break;
+    }
+}
+*/
+#pragma once
+#include <SFML/Graphics.hpp>
+#include <SFML/Audio/Sound.hpp>
+#include <SFML/Audio/SoundBuffer.hpp>
+#include <cmath>
+#include "Bullet.h"
+//#define M_PI 3.14159265358979323846
+//#include <iostream>
+#include "Collisionable.h"
+#include "Avion.h"
+#include "Sounds.h"
+#include "Explosion.h"
+
+enum class EnemyBState{
+        Vivo=0,
+        Muerto
+};
+
+class EnemyB: public sf::Drawable, public Collisionable, public Avion
+{
+    public:
+        EnemyB();
+        void cmd() override; /// HEREDA DE AVION
+        void update() override; /// HEREDA DE AVION
+        sf::Vector2f getPosition()const override; /// HEREDA DE AVION
+        void draw(sf::RenderTarget &target , sf::RenderStates states)const override;/// HEREDA DE DIBUJABLE
+        sf::FloatRect getBounds() const override; /// HEREDA DE COLLISIONABLE
+        bool shot();
+        void respawn();
+        void explosion();
+        void setStateMuerto();
+        void inicioEnemyB(int);
+
+    private:
+        sf::Vector2f _newPosition;
+        bool _canShoot;
+        float _frame;
+        int _timeRespawn;
+        int _timeReload;
+        Sounds _sound;
+        float _frameExplosion;
+        Explosion *_explosion;
+        EnemyBState _state;
+        //sf::Vector2f _moveHacia;
+        //float _angle;
+        //int _horizonte;
+        std::vector <EnemyB*> _vEnemiesB;
+         std::vector<Bullet*> _bullets_vEnemyB;
+
+};
+
+#include "EnemyBullet.h"
+
+EnemyBullet::EnemyBullet(sf::Vector2f origen, sf::Vector2f direccion, float velocidad)
+{
+  _texture = new sf::Texture;
+  _texture->loadFromFile("assets/sprites/1942-sprites-projectiles.png");
+  _sprite.setTexture(*_texture);
+  _sprite.setTextureRect({73,14,4,4}); // tamaño x 3 = 12*12
+  _sprite.setScale(3,3);
+  _sprite.setPosition(origen);
+  _velocidad_bala = velocidad;
+  _direccion = direccion;
+}
+
+void EnemyBullet::update()
+{
+  _sprite.move(_direccion);
+}
+
+void EnemyBullet::draw(sf::RenderTarget &target, sf::RenderStates states) const
+{
+  target.draw(_sprite, states);
+}
+
+sf::FloatRect EnemyBullet::getBounds() const
+{
+  return _sprite.getGlobalBounds();
+}
+
+#pragma once
+#include <SFML/Graphics.hpp>
+#include "Collisionable.h"
+#include <SFML/Audio/Sound.hpp>
+#include <SFML/Audio/SoundBuffer.hpp>
+
+class EnemyBullet: public sf::Drawable, public Collisionable
+{
+public:
+    EnemyBullet(sf::Vector2f origen, sf::Vector2f direccion, float velocidad);
+    void update();
+    void draw(sf::RenderTarget &target, sf::RenderStates states)const override;
+    sf::FloatRect getBounds() const override;
+    void setMove(sf::Vector2f direccion);
+    float getVelocidadBala() const;
+
+private:
+    sf::Sprite _sprite;
+    sf::Texture *_texture;
+    float _velocidad_bala;
+    sf::Vector2f _direccion;
+
+};
+#include "Explosion.h"
+
+Explosion::Explosion(){}
+
+Explosion::Explosion(int horizontal, int vertical)
+{
+  _texture = new sf::Texture;
+  _texture->loadFromFile("assets/sprites/1942-sprites-effects.png");
+  _sprite.setTexture(*_texture);
+  _sprite.setPosition(sf::Vector2f(horizontal,vertical));
+  _sprite.setTextureRect({1,110,32,32});
+
+}
+
+void Explosion::smallExplosion(float &frame)
+{
+  /// Dependiendo del rectangulo , tengo que dibujarlo...
+
+  frame+=0.2;
+  _sprite.setTextureRect({38*(int)(frame/1.5),110,33,32});
+}
+
+/*
+void Explosion::smallExplosion()
+{
+  /// Dependiendo del rectangulo , tengo que dibujarlo...
+
+  _frame+=0.2f;
+
+  if(_frame >= 8)
+  {
+    _frame = 0.f;
+  }
+   _sprite.setTextureRect({38*(int)(_frame/1.5),110,33,32});
+}
+*/
+
+void Explosion::draw(sf::RenderTarget &target, sf::RenderStates states)const
+{
+  target.draw(_sprite, states);
+}
+
+
+
+#pragma once
+#include <SFML/Graphics.hpp>
+
+class Explosion: public sf::Drawable
+{
+  public:
+    Explosion();
+    Explosion(int horizontal , int vertical);
+    //void smallExplosion();
+    void smallExplosion(float &frame);
+    void draw(sf::RenderTarget &target, sf::RenderStates states)const override;
+  private:
+    sf::Texture *_texture;
+    sf::Sprite _sprite;
+    float _frame;
+
+};
+
+// Game.h
+
+#pragma once
+#include <SFML/Graphics.hpp>
+#include "SceneManager.h"
+
+
+class Game
+{
+public:
+    Game() : window(sf::VideoMode(600, 800), "1942")
+
+    {
+      window.setFramerateLimit(60);
+      sceneManager = new SceneManager();
+    }
+
+
+
+    void run()
+    {
+      while (window.isOpen()) {
+        sf::Event event;
+        while(window.pollEvent(event))
+        {
+          if(event.type == sf::Event::Closed ||  (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Escape)  ) {
+            window.close();
+          }
+        }
+        sceneManager->update();
+        window.clear();
+        sceneManager->render(window);
+        window.display();
+
+      }
+    }
+
+    ~Game()
+    {
+      delete sceneManager;
+    }
+
+private:
+    sf::RenderWindow window;
+    SceneManager *sceneManager;
+};
+// Gameplay
+
+#pragma once
+#include <iostream>
+#include "Scene.h"
+#include "Player.h"
+#include "Bullet.h"
+#include "Enemy.h"
+#include "EnemyB.h"
+#include "EnemyBullet.h"
+#include "PowerUp.h"
+
+class Gameplay {
+public:
+
+    Gameplay()
+    {
+      _puntos = 0;
+      _vida = 3;
+    }
+
+    void update(Scene* currentScene) {
+      // Controla la lógica general del juego
+      score += checkCollisions(currentScene);
+
+      // Actualiza el temporizador, salud del jugador, etc.
+
+    Player* player = currentScene->getPlayer();
+    Enemy* enemy1 = currentScene->getEnemy();
+    player->update();
+    enemy1->update();
+
+
+      if (checkCollision(*player, *enemy1)) {
+        std::cout << "se estan chocando" << std::endl;
+        changeVidas();
+        player->respawn();
+        enemy1->respawn();
+      } // COLISION ENEMIGO 1 CON PLAYER
+
+    }
+
+    void changePuntos(int puntos)
+    {
+      _puntos += puntos;
+    }
+    void changeVidas()
+    {
+      _vida--;
+    }
+    int getVidas()const
+    {
+      return _vida;
+    }
+    int getPuntos()const
+    {
+      return _puntos;
+    }
+
+    bool checkCollision(const Player& player, const Enemy& enemy) const
+    {
+      return player.getBounds().intersects(enemy.getBounds());
+    }
+
+
+    //////////////////////// PRIVATE ///////////////////////////
+private:
+    int score;
+    // Otros elementos, como vida, temporizador, etc.
+
+    int checkCollisions(Scene* scene) {
+
+      // Lógica de colisiones entre jugador y enemigos/objetos en la escena
+      return 0;
+    }
+
+
+    void inicioEnemyB();
+
+    std::vector<Bullet*> _bullets;
+    std::vector<EnemyBullet*> _enemyBullets;
+    Enemy enemigo1;
+    std::vector<Enemy*> _enemies;
+
+    Sounds _sound;
+
+    std::vector<Explosion*> _vExplosiones; /// SI HAY EXPLISION
+    std::vector<bool*> _vec_isExplosiveActive; /// VERIFICAR SI ESTA EN VERDADERO
+    std::vector<float*> _vec_frameExplosive; /// LOS FRAMES PARA MANDERSELO A LA FUNCION
+
+    PowerUp *_powerUp;
+
+    sf::Clock clock;
+
+
+    int _puntos;
+    int _vida;
+
+};
+// Level2Scene.h
+
+#pragma once
+
+#include <iostream>
+#include "Scene.h" // los niveles hereda de Scene
+#include "SceneManager.h" // los niveles hereda de Scene
+
+class Level2Scene : public Scene
+{
+public:
+
+    Level2Scene():
+      _timerReload(0),
+      _frameExplosion(0.f),
+      _isExplosionActive(false),
+      _frames(0)
+    {  _bg.loadFromFile("assets/sprites/bg-maps-1942.png");
+      _bgSprite.setTexture(_bg);
+      _bgSprite.setPosition(0, -5051 + 800);
+      _gameplay = new Gameplay();
+      _player = new Player();
+      _enemy1 = new Enemy();
+      _explosion = new Explosion();
+
+    }
+
+    void start() override
+    {
+      std::cout << "Level 2 Started!" << std::endl;
+      //Display de vidas y puntaje
+      _font1.loadFromFile("assets/fonts/MONOCOQUE_FUENTE.ttf");
+      _puntos.setFont(_font1);
+      _puntos.setPosition(3, 0);
+      _vidas.setFont(_font1);
+      _vidas.setPosition(3, 30);
+      _font2.loadFromFile("assets/fonts/monofonto_rg.otf");
+      _frames_cartel.setFont(_font2);
+      _frames_cartel.setPosition(500, 0);
+      _frames_cartel.setCharacterSize(14);
+    }
+
+    void cmd() override
+    {
+    }
+
+    void update() override
+    {
+      _bgSprite.move(0, 2.3f);
+      _puntos.setString("PUNTOS " + std::to_string(_gameplay->getPuntos()));
+      _vidas.setString("VIDA " + std::to_string(_gameplay->getVidas()));
+      _frames_cartel.setString("Frames= " + std::to_string(_frames) + "\nTiempo= " + std::to_string(_frames / 60));
+      if(_frames%360==0) _gameplay->changePuntos(100);
+      if (_bgSprite.getPosition().y > 0) {
+        respawnBackground(); // TODO en lugar de rawspan termina el nivel y el booleano levelComplete se pone en true
+      }
+
+
+
+      _player->cmd();   // Llama al método cmd del jugador para procesar las entradas
+      _player->update(); // Llama a update para mover el jugador y actualizar su posición
+      _enemy1->update();
+      _enemy1->cmd();
+
+
+      _frames++;
+      _timerReload++;
+    }
+
+
+    void draw(sf::RenderTarget &target, sf::RenderStates states) const override
+    {
+      // Dibuja un rectángulo de prueba
+      target.draw(_bgSprite, states);
+      target.draw(_puntos, states);
+      target.draw(_vidas, states);
+      target.draw(_frames_cartel, states);
+      _player->draw(target, states);
+      _enemy1->draw(target, states);
+      _explosion->draw(target, states);
+    }
+
+
+    void render(sf::RenderWindow &window) override
+    {
+      window.clear(sf::Color::Black);
+      window.draw(*this);
+    }
+
+    sf::Vector2f getCameraPosition()
+    {
+      return _bgSprite.getPosition();
+    }
+
+
+    void respawnBackground()
+    {
+      _bgSprite.setPosition({0, -5051 + 800});
+    }
+
+    Player* getPlayer()  override
+    {
+      return _player;
+    }
+
+    Enemy* getEnemy() override
+    {
+      return _enemy1;
+    }
+
+    std::vector<Enemy*> getEnemies() override {
+      return _enemies;  // Devolver los enemigos específicos de Level1
+    }
+
+private:
+    Gameplay* _gameplay = nullptr;  // Asegúrate de que Gameplay sea miembro privado
+    Player* _player = nullptr;
+    Enemy* _enemy1 = nullptr;
+    Explosion* _explosion = nullptr;
+
+    std::vector<Enemy *> enemies;
+    sf::Text _puntos;
+    sf::Font _font1;
+    sf::Font _font2;
+    sf::Text _vidas;
+    sf::Text _frames_cartel;
+    sf::Texture _bg;
+    sf::Sprite _bgSprite;
+    bool levelComplete;
+    int _frames;
+    int _timerReload;
+    float _frameExplosion;
+    bool _isExplosionActive;
+    std::vector<Enemy*> _enemies;  // Lista de enemigos en Level1
+
+};
+#include "Player.h"
+#include <iostream>
+
+
+/// sf::Vector2u textureSize = texture.getSize();
+// Obtemos el ancho y el alto de la textura: {textureSize.x , textureSize.y}
+
+Player::Player()
+{
+  _velocity = {5,5};
+  _shoot = false;
+  _texture = new sf::Texture;
+  _texture->loadFromFile("assets/sprites/1942-sprites-player.png");
+  _sprite.setTexture(*_texture);
+  _sprite.setTextureRect({107,17,32,18}); // tamaño x3 = 75x54
+  _position = {(600-96)/2+2,700};
+//  move((600-96)/2+2,700);
+  _sprite.setPosition(_position);
+  _sprite.setScale(3,3);
+//  _sprite.setOrigin({_sprite.getGlobalBounds().width/2,_sprite.getGlobalBounds().height/2});
+  //_state = PlayerState::Idle;
+  //_frame = 0;
+
+}
+
+void Player::cmd()
+{
+
+  _velocity = {0, 0};
+
+  bool teclaMovimientoPresionada;
+
+  if(sf::Keyboard::isKeyPressed(sf::Keyboard::Right)) {
+    teclaMovimientoPresionada = true;
+    _velocity.x = 5;
+    _sprite.setTextureRect({177,17,32,18});
+  }
+
+  if (!teclaMovimientoPresionada && getTeclaAnterior()) {
+    _sprite.setTextureRect({107,17,32,18}); // tamaño x3 = 75x54
+  }
+
+  if(sf::Keyboard::isKeyPressed(sf::Keyboard::Left)) {
+    teclaMovimientoPresionada = true;
+    _velocity.x = -5;
+    _sprite.setTextureRect({177,17,32,18});
+  }
+
+  if(sf::Keyboard::isKeyPressed(sf::Keyboard::Up))
+  {
+    _velocity.y = -5;
+  }
+  if(sf::Keyboard::isKeyPressed(sf::Keyboard::Down))
+  {
+    _velocity.y = 5;
+  }
+
+  setTeclaAnterior(teclaMovimientoPresionada);
+
+
+//  /**
+//  if(sf::Keyboard::isKeyPressed(sf::Keyboard::T))
+//  {
+//    _state = PlayerState::Move_Back;
+//  }
+//  */
+
+}
+
+
+sf::Vector2f Player::getBulletOrigin() const
+{
+  return {_sprite.getPosition().x + (96-48)/2 ,_sprite.getPosition().y};
+}
+
+
+
+void Player::update()
+{
+
+  /*
+  switch (_state)
+  {
+    case PlayerState::Idle:
+      _sprite.setTextureRect({213,33,50,34});
+
+      break;
+    case PlayerState::Move_Right:
+      _frame += 0.2;
+
+      if(_frame >= 4){ _frame = 0;}
+
+      _sprite.setTextureRect({270 + int(_frame)*40,33,65,34});
+      break;
+    case PlayerState::Move_Left:
+
+      break;
+    case PlayerState::Move_Up:
+
+      break;
+    case PlayerState::Move_Down:
+
+      break;
+    case PlayerState::Move_Back:
+
+      break;
+  }
+*/
+
+  /// Restricciones de pantalla
+  if (_sprite.getPosition().x < -74/2 ){
+    _sprite.setPosition(-74/2, _sprite.getPosition().y);
+  }
+  if (_sprite.getPosition().y < 0) {
+    _sprite.setPosition(_sprite.getPosition().x, 0);
+  }
+  if(_sprite.getPosition().x > 600+ 74/2 - getBounds().width) {
+    _sprite.setPosition(600 + 74/2 - getBounds().width, _sprite.getPosition().y);
+  }
+  if(_sprite.getPosition().y > 800 - getBounds().height) {
+    _sprite.setPosition(_sprite.getPosition().x, 800 - getBounds().height);
+  }
+  _sprite.move({_velocity.x, _velocity.y});
+}
+
+
+bool Player::Shoot()
+{
+  if(sf::Keyboard::isKeyPressed(sf::Keyboard::Space))
+  {
+    if (!_shoot)
+    {
+//      _disparoPew.playDisparoPew();
+      _shoot = true;
+      return true;
+    }
+  }
+  else
+  {
+    /// Cuando deje de soltar el espacio, el player va a poder disparar.
+    if(!(sf::Keyboard::isKeyPressed(sf::Keyboard::Space)))
+    {
+      _shoot = false;
+    }
+  }
+
+  return false;
+}
+
+//}
+
+sf::FloatRect Player::getBounds()const
+{
+  return _sprite.getGlobalBounds();
+}
+
+void Player::draw(sf::RenderTarget &target, sf::RenderStates states)const
+{
+  target.draw(_sprite, states);
+}
+
+void Player::setTeclaAnterior(bool teclaAnterior)
+{
+  _teclaAnterior = teclaAnterior;
+}
+
+bool Player::getTeclaAnterior() const
+{
+  return _teclaAnterior;
+}
+
+
+
+void Player::respawn()
+{
+  _sprite.setPosition((600-96)/2+2, 700);
+}
+
+sf::Vector2f Player::getPosition() const
+{
+  return _sprite.getPosition();
+}
+
+
+
+
+/// Clse control boleanos , abcde , cada vez que hacemos un cmd,
+///
+/**
+  Mapeo de teclado -> archivo
+
+*/
+
+
+#pragma once
+#include <SFML/Graphics.hpp>
+#include "Collisionable.h"
+#include "Avion.h"
+#include <string>
+#include "Sounds.h"
+
+class Player: public sf::Drawable, public Collisionable, public Avion
+{
+  public:
+    Personaje();
+    void cmd() override; /// HEREDA DE AVION
+    void update() override; /// HEREDA DE AVION
+    void draw(sf::RenderTarget &target, sf::RenderStates states)const override;/// HEREDA DE COLLISIONABLE
+    sf::FloatRect getBounds() const override; /// HEREDA DE COLLISIONABLE
+    bool Shoot(); /// SI APRETAMOS LA TECLA DISPARO
+    bool getTeclaAnterior()const;
+    void setTeclaAnterior(bool);
+    sf::Vector2f getBulletOrigin() const;
+    sf::Vector2f getPosition() const override;
+    void respawn();
+
+
+
+  private:
+    bool _teclaAnterior = false;
+    sf::Vector2f _position;
+    Sounds _disparoPew;
+  /// TODO: Machine states
+};
+#include "PowerUp.h"
+#include <iostream>
+
+
+PowerUp::PowerUp(){
+  _texture.loadFromFile("assets/sprites/1942-sprites-projectiles.png");
+  _sprite.setTexture(_texture);
+  int lista_powerUpRandom[] = {105,124,143,162,181,200,219,238};
+  int powerUpRandom = std::rand()%8;
+  std::cout << lista_powerUpRandom[powerUpRandom] << std::endl;
+  _sprite.setTextureRect({lista_powerUpRandom[powerUpRandom],11,16,15}); // X,Y,widh,heigh
+  _sprite.scale(3,3);
+//  _sprite.setPosition({-50,-50});
+//  _sprite.setOrigin(_sprite.getGlobalBounds().width/2, _sprite.getGlobalBounds().height/2);
+}
+
+void PowerUp::update()
+{
+  _sprite.move(0,2.3f);
+}
+
+void PowerUp::respawn(){
+  _sprite.setPosition(std::rand() % 500 + _sprite.getGlobalBounds().width,
+                      std::rand() % 400 + _sprite.getGlobalBounds().height);
+}
+
+sf::FloatRect PowerUp::getBounds()const{
+  return _sprite.getGlobalBounds();
+}
+
+void PowerUp::draw(sf::RenderTarget &target, sf::RenderStates states)const{
+  target.draw(_sprite, states);
+}
+
+
+#pragma once
+#include <SFML/Graphics.hpp>
+#include "Collisionable.h"
+//#include "Scene.h"
+
+class PowerUp : public sf::Drawable, public Collisionable
+{
+  public:
+    PowerUp();
+    void respawn();
+    void update();
+    void draw(sf::RenderTarget &, sf::RenderStates)const override;
+    sf::FloatRect getBounds() const override;
+  private:
+    sf::Texture _texture;
+    sf::Sprite _sprite;
+};
+// Scene.h
+
+#pragma once
+#include <SFML/Graphics.hpp>
+
+// Declaración anticipada de Gameplay (forward declaration), porque si se incluye Gameplay.h (#include "Gameplay.h"
+//    se genera una referencia circular.
+class Gameplay;
+class Player;
+class Enemy;
+
+class Scene : public sf::Drawable
+{
+public:
+
+    // nuevas funciones virtuales que heredan los niveles:
+    virtual void start() = 0;
+
+    virtual void cmd() = 0;
+
+    virtual void update() = 0;
+
+    virtual void render(sf::RenderWindow &window) = 0;
+
+    virtual Player* getPlayer() = 0;
+    virtual Enemy* getEnemy() = 0;
+    virtual std::vector<Enemy*> getEnemies() = 0;  // Método virtual que devuelve enemigos en la escena
+
+protected:
+
+private:
+};
+//SceneManager.h
+
+#pragma once
+#include "Gameplay.h"
+#include "Level2Scene.h"
+
+// Declaración anticipada de Gameplay (forward declaration), porque si se incluye Gameplay.h (#include "Gameplay.h"
+//    se genera una referencia circular.
+class Gameplay;
+class Player;
+class Enemy;
+
+class SceneManager
+{
+public:
+    SceneManager()
+    {
+//   Iniciar en el menú principal
+      _gameplay = new Gameplay();
+      currentScene = new Level2Scene();
+      currentScene->start();
+    }
+
+
+    void changeScene(Scene *newScene)
+    {
+      delete currentScene;  // Libera la escena anterior
+      currentScene = newScene;
+      if (currentScene) {
+        currentScene->start();
+      }
+    }
+
+    void update()
+    {
+      if (_gameplay && currentScene) {  // Asegúrate de que `_gameplay` y `currentScene` existan
+        _gameplay->update(currentScene);
+      }
+    }
+
+    void render(sf::RenderWindow &window)
+    {
+      if (currentScene) {
+        currentScene->render(window);
+      }
+    }
+
+    ~SceneManager()
+    {
+      delete currentScene;
+      delete _gameplay;  // Libera `_gameplay` al destruir `SceneManager`
+    }
+
+private:
+    Scene *currentScene = nullptr;
+    Gameplay *_gameplay = nullptr;  // Declara `_gameplay` como puntero privado
+
+};#include "Sounds.h"
+
+Sounds::Sounds()
+{
+  _buffer.loadFromFile("assets/sounds/sfx/impact_explosion_03.mp3");
+  _sound.setBuffer(_buffer);
+  _sound.setVolume(10.f);
+
+  _bufferPew.loadFromFile("assets/sounds/sfx/pew-pew-disparo.mp3");
+  _soundPew.setBuffer(_bufferPew);
+  _soundPew.setVolume(15.f);
+
+}
+
+void Sounds::playExplosionSmall()
+{
+  _sound.play();
+}
+
+
+void Sounds::playDisparoPew()
+{
+  _soundPew.play();
+}
+
+void Sounds::stopAllSounds()
+{
+  _sound.stop();
+  _soundPew.stop();
+}
+
+Sounds::~Sounds()
+{
+
+}
+
+#pragma once
+#include <SFML/Audio/Sound.hpp>
+#include <SFML/Audio/SoundBuffer.hpp>
+
+class Sounds
+{
+  public:
+    Sounds();
+    void playExplosionSmall();
+    void playDisparoPew();
+    void stopAllSounds();
+    ~Sounds();
+
+  private:
+    sf::SoundBuffer _buffer;
+    sf::Sound _sound;
+    sf::SoundBuffer _bufferPew;
+    sf::Sound _soundPew;
+};
+
+

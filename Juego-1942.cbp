@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<CodeBlocks_project_file>
+	<FileVersion major="1" minor="6" />
+	<Project>
+		<Option title="Juego-1942" />
+		<Option pch_mode="2" />
+		<Option compiler="gcc" />
+		<Build>
+			<Target title="Debug">
+				<Option output="bin/Debug/Juego-1942" prefix_auto="1" extension_auto="1" />
+				<Option object_output="obj/Debug/" />
+				<Option type="1" />
+				<Option compiler="gcc" />
+				<Compiler>
+					<Add option="-pedantic-errors" />
+					<Add option="-pedantic" />
+					<Add option="-Wall" />
+					<Add option="-std=c17" />
+					<Add option="-g" />
+					<Add directory="../Juego-1942" />
+					<Add directory="../Proyecto-1942" />
+					<Add directory="./" />
+				</Compiler>
+			</Target>
+			<Target title="Release">
+				<Option output="bin/Release/Juego-1942" prefix_auto="1" extension_auto="1" />
+				<Option object_output="obj/Release/" />
+				<Option type="1" />
+				<Option compiler="gcc" />
+				<Compiler>
+					<Add option="-O2" />
+					<Add directory="../Juego-1942" />
+					<Add directory="../Proyecto-1942" />
+					<Add directory="./" />
+				</Compiler>
+				<Linker>
+					<Add option="-s" />
+				</Linker>
+			</Target>
+		</Build>
+		<Compiler>
+			<Add option="-Wall" />
+			<Add option="-fexceptions" />
+			<Add directory="SFML/include" />
+		</Compiler>
+		<Linker>
+			<Add library="sfml-graphics" />
+			<Add library="sfml-window" />
+			<Add library="sfml-system" />
+			<Add library="sfml-audio" />
+			<Add directory="SFML/lib" />
+		</Linker>
+		<Unit filename="Avion.h" />
+		<Unit filename="Bullet.cpp" />
+		<Unit filename="Bullet.h" />
+		<Unit filename="CartelPosicion.cpp" />
+		<Unit filename="CartelPosicion.h" />
+		<Unit filename="Collisionable.cpp" />
+		<Unit filename="Collisionable.h" />
+		<Unit filename="Creditos.cpp" />
+		<Unit filename="Creditos.h" />
+		<Unit filename="Enemy.cpp" />
+		<Unit filename="Enemy.h" />
+		<Unit filename="EnemyB.cpp" />
+		<Unit filename="EnemyB.h" />
+		<Unit filename="EnemyBullet.cpp" />
+		<Unit filename="EnemyBullet.h" />
+		<Unit filename="Explosion.cpp" />
+		<Unit filename="Explosion.h" />
+		<Unit filename="GamePlay.cpp" />
+		<Unit filename="GamePlay.h" />
+		<Unit filename="Menu.cpp" />
+		<Unit filename="Menu.h" />
+		<Unit filename="Personaje.cpp" />
+		<Unit filename="Personaje.h" />
+		<Unit filename="Player.cpp" />
+		<Unit filename="Player.h" />
+		<Unit filename="PowerUp.cpp" />
+		<Unit filename="PowerUp.h" />
+		<Unit filename="Scene.cpp" />
+		<Unit filename="Scene.h" />
+		<Unit filename="Sounds.cpp" />
+		<Unit filename="Sounds.h" />
+		<Unit filename="main.cpp" />
+		<Extensions />
+	</Project>
+</CodeBlocks_project_file>

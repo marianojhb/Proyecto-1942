@@ -4,3 +4,53 @@ out
 .idea
 .vs
 .vscode
+
+# Prerequisites
+*.d
+
+# Compiled Object files
+*.slo
+*.lo
+*.o
+*.obj
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Fortran module files
+*.mod
+*.smod
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
+
+Juego-1942.depend
+Juego-1942.layout
+.gitignore
+
+.DS_Store
+src/.DS_Store
+
+/.github/workflows/
+
+# Archivos generados por CMake
+CMakeCache.txt
+CMakeFiles/
+CMakeLists.txt.user
+CMakeLists.txt
+cmake-build-*/
+cmake-build-debug/
