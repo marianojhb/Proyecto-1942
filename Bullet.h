@@ -7,6 +7,7 @@ class Bullet: public sf::Drawable, public Collisionable
 {
   public:
     Bullet();
+    ~Bullet();
     Bullet(int horizontal,int vertical, int velocidad);
     Bullet(sf::Vector2f position);
     //Bullet(int x ,int y, sf::Texture &texture, sf::IntRect intReact , int velociad);
@@ -15,8 +16,7 @@ class Bullet: public sf::Drawable, public Collisionable
     sf::FloatRect getBounds() const override;
   private:
     sf::Sprite _sprite;
-    sf::Texture *_texture;
+    sf::Texture *_texture = nullptr;
     int _velocidad;
 
 };
-

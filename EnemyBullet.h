@@ -15,6 +15,7 @@ public:
 
     EnemyBullet(sf::Vector2f origen, sf::Vector2f direccion, float velocidad);
     EnemyBullet(float horizontal,float vertical, float velocidadX, float velocidadY);
+    ~EnemyBullet();
     void update();
     void draw(sf::RenderTarget &target, sf::RenderStates states)const override;
     sf::FloatRect getBounds() const override;
@@ -24,7 +25,7 @@ public:
 private:
 
     sf::Sprite _sprite;
-    sf::Texture *_texture;
+    sf::Texture *_texture = nullptr;
     float _velocidad_bala;
     float _velocidadX;
     float _velocidadY;

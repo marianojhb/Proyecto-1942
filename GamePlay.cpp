@@ -24,6 +24,19 @@ GamePlay::GamePlay()
 
 }
 
+GamePlay::~GamePlay()
+{
+  for (auto *bullet : _bullets) delete bullet;
+  for (auto *bullet : _enemyBullets) delete bullet;
+  for (auto *bullet : _bullets_Boss) delete bullet;
+  for (auto *bullet : _bullets_vEnemyB) delete bullet;
+  for (auto *enemy : _vEnemiesB) delete enemy;
+  for (auto *explosion : _vExplosiones) delete explosion;
+  for (auto *active : _vec_isExplosiveActive) delete active;
+  for (auto *frame : _vec_frameExplosive) delete frame;
+  delete _powerUp;
+}
+
 void GamePlay::iniciarBalasVector()
 {
   ////////////////////////////////////////////////////////////////////////

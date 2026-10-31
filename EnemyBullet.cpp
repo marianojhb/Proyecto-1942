@@ -1,4 +1,9 @@
 #include "EnemyBullet.h"
+
+EnemyBullet::~EnemyBullet()
+{
+  delete _texture;
+}
 /*
 EnemyBullet::EnemyBullet(float horizontal,float vertical, float velocidadX, float velocidadY)
 {

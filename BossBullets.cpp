@@ -1,5 +1,10 @@
 #include "BossBullets.h"
 
+BossBullets::~BossBullets()
+{
+  delete _texture;
+}
+
 /// POSDEL JEFE ->
 /// TODO: tiene que tener una direccion y angulo..
 
@@ -56,8 +61,8 @@ float BossBullets::calcularAngulo()
     float dx = _newPosition.x - _sprite.getPosition().x;
 
     float anguloEnRadianes = atan2(dy,dx);
-    /// atan() retorna el arcotangente de un número en radianes
-    /// atan() retorna  ángulos entre -PI/2 y PI/2
+    /// atan() retorna el arcotangente de un nï¿½mero en radianes
+    /// atan() retorna  ï¿½ngulos entre -PI/2 y PI/2
     /// atan2() retorna cualer angulo;
 
     /// Hacemos la conversion ...
@@ -87,20 +92,18 @@ BossBullets::BossBullets(sf::Vector2f origen, sf::Vector2f direccion, float velo
   _texture = new sf::Texture;
   _texture->loadFromFile("assets/sprites/1942-sprites-projectiles.png");
   _sprite.setTexture(*_texture);
-  _sprite.setTextureRect({73,14,4,4}); // tamaño x 3 = 12*12
+  _sprite.setTextureRect({73,14,4,4}); // tamaï¿½o x 3 = 12*12
   _sprite.setScale(3,3);
   _sprite.setPosition(origen);
   _velocidad_bala = velocidad;
   _direccion = direccion;
 
-  // Normaliza la dirección y luego escala con la velocidad
-  /*
+  // Normaliza la direcciï¿½n y luego escala con la velocidad
   float magnitud = sqrt(direccion.x * direccion.x + direccion.y * direccion.y);
   if (magnitud != 0) {
     _direccion = (direccion / magnitud) * _velocidad_bala;
   } else {
-    _direccion = {0, 0}; // Evitar división por cero
+    _direccion = {0, 0}; // Evitar divisiï¿½n por cero
   }
 }
   */
-

@@ -22,6 +22,7 @@ class GamePlay : public sf::Drawable
 {
 public:
     GamePlay();
+    ~GamePlay();
 
     void cmd();
 
@@ -94,7 +95,7 @@ private:
     std::vector<bool *> _vec_isExplosiveActive; /// VERIFICAR SI ESTA EN VERDADERO
     std::vector<float *> _vec_frameExplosive; /// LOS FRAMES PARA MANDERSELO A LA FUNCION
 
-    PowerUp *_powerUp;
+    PowerUp *_powerUp = nullptr;
     sf::Clock respawn_delay;
     bool _player_down;
     bool _isExplosionActiveBoss;
@@ -102,4 +103,3 @@ private:
     Configuracion _configuracion;
 
 };
-

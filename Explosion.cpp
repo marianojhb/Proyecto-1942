@@ -2,6 +2,11 @@
 
 Explosion::Explosion(){}
 
+Explosion::~Explosion()
+{
+  delete _texture;
+}
+
 Explosion::Explosion(int horizontal, int vertical)
 {
   _texture = new sf::Texture;

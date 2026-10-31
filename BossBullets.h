@@ -16,6 +16,7 @@ public:
     // BossBullets(int horizontal , int vertical , float velocidad);
     // BossBullets(sf::Vector2f origen, sf::Vector2f direccion, float velocidad);
     BossBullets(int eje_x, int eje_y , float angulo , float velocidad);
+    ~BossBullets();
     void update();
     void draw(sf::RenderTarget &target, sf::RenderStates states)const override;
     sf::FloatRect getBounds() const override;
@@ -24,13 +25,12 @@ public:
 
 private:
     sf::Sprite _sprite;
-    sf::Texture *_texture;
+    sf::Texture *_texture = nullptr;
     float _velocidad_bala;
     float _dx;
     float _dy;
     sf::Vector2f _direccion;
 };
-
 
 
 
