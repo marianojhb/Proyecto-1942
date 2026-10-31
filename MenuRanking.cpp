@@ -1,5 +1,6 @@
 #include "MenuRanking.h"
 #include <iostream>
+#include <algorithm>
 
 MenuRanking::MenuRanking()
 {
@@ -7,18 +8,26 @@ MenuRanking::MenuRanking()
   RankingArchivo ra("assets/config/ranking.dat");
 
   _cantidadRegistros = ra.CantidadRegistros();
+  Ranking registros[10];
+  const int cantidad = std::min(_cantidadRegistros, 10);
   Ranking *reg = ra.obtenerRegistrosRanking(_cantidadRegistros);
-  Ranking::ordenarRanking(reg, _cantidadRegistros);
+  if (reg != nullptr) {
+    for (int i = 0; i < cantidad; ++i) {
+      registros[i] = reg[i];
+    }
+    delete[] reg;
+  }
+  Ranking::ordenarRanking(registros, 10);
   _rankingleido = "";
   _rankingleido += "POS\tSCORE\tDATE\t\tNAME\n";
   for (int i = 0; i < 10; i++) {
-    std::string nom_str = reg[i].getNombre().getString();
+    std::string nom_str = registros[i].getNombre().getString();
     _rankingleido +=
-            std::to_string(i + 1) + "\t" + std::to_string(reg[i].getPuntos()) + "\t" + reg[i].getFecha().toString() +
+            std::to_string(i + 1) + "\t" + std::to_string(registros[i].getPuntos()) + "\t" + registros[i].getFecha().toString() +
             "\t" + nom_str + "\n";
   }
-  _rankingMasBajo = reg[9].getPuntos();
-  _rankingMasAlto = reg[0].getPuntos();
+  _rankingMasBajo = registros[9].getPuntos();
+  _rankingMasAlto = registros[0].getPuntos();
 
 
   if (!font.loadFromFile("assets/fonts/fuente.ttf")) {
@@ -77,4 +86,3 @@ int MenuRanking::obtenerRankingMasAlto() const
 {
   return _rankingMasAlto;
 }
-

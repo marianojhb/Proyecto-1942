@@ -31,6 +31,7 @@ bool ConfiguracionArchivo::grabarConfiguracion(Configuracion &reg)
   }
   fwrite(&reg,sizeof(Configuracion),1,_pConfiguracion);
   fclose(_pConfiguracion);
+  _pConfiguracion = nullptr;
   std::cout << "Datos guardados correctamente en configuracion.dat" << std::endl;
   return true;
 }
@@ -44,16 +45,17 @@ ConfiguracionArchivo::~ConfiguracionArchivo()
 Configuracion* ConfiguracionArchivo::obtenerConfiguracion()
 {
   auto *reg = new Configuracion[1];
+  reg[0].cargarConfiguracion(true, true);
   _pConfiguracion = fopen(_url, "rb");
   if (_pConfiguracion == nullptr) {
-    std::cerr << "Error al abrir el archivo para escribir." << std::endl;
-    exit(0);
+    std::cerr << "No se pudo abrir la configuracion; se usan valores por defecto." << std::endl;
+    return reg;
   }
-  for (int i = 0; i < 1; i++) {
-    fread(&reg[i], sizeof(Configuracion), 1, _pConfiguracion);
+  if (fread(&reg[0], sizeof(Configuracion), 1, _pConfiguracion) != 1) {
+    reg[0].cargarConfiguracion(true, true);
   }
   fclose(_pConfiguracion);
+  _pConfiguracion = nullptr;
 
   return reg;
 }
-

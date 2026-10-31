@@ -167,17 +167,7 @@ string Fecha::toString()
 }
 bool Fecha::esBisiesto(int a)
 {
-  bool res;
-  if (a % 4 == 0) {
-    res = true;
-    if (a % 100 == 0) {
-      res = false;
-      if (a % 400 == 0) {
-        res = true;
-      }
-    }
-  }
-  return res;
+  return (a % 4 == 0) && ((a % 100 != 0) || (a % 400 == 0));
 }
 void Fecha::agregarDias(int dias)
 {

@@ -35,6 +35,7 @@ bool RankingArchivo::leerRegistrosRanking()
   }
   //pausar();
   fclose(_pRanking);
+  _pRanking = nullptr;
   return true;
 }
 
@@ -48,6 +49,7 @@ bool RankingArchivo::grabarRegistroRanking(Ranking &reg)
     }
     fwrite(&reg,sizeof(Ranking),1,_pRanking);
     fclose(_pRanking);
+    _pRanking = nullptr;
       std::cout << "Datos guardados correctamente en ranking.dat" << std::endl;
     return true;
 }
@@ -60,16 +62,23 @@ RankingArchivo::~RankingArchivo()
 
 Ranking* RankingArchivo::obtenerRegistrosRanking(int cantidad_registros)
 {
+  if (cantidad_registros <= 0) {
+    return nullptr;
+  }
   auto *reg = new Ranking[cantidad_registros];
   _pRanking = fopen(_url, "rb");
   if (_pRanking == nullptr) {
-    std::cerr << "Error al abrir el archivo para escribir." << std::endl;
-    exit(0);
+    std::cerr << "No se pudo abrir el ranking." << std::endl;
+    delete[] reg;
+    return nullptr;
   }
   for (int i = 0; i < cantidad_registros; i++) {
-    fread(&reg[i], sizeof(Ranking), 1, _pRanking);
+    if (fread(&reg[i], sizeof(Ranking), 1, _pRanking) != 1) {
+      reg[i] = Ranking();
+    }
   }
   fclose(_pRanking);
+  _pRanking = nullptr;
 
   return reg;
 }

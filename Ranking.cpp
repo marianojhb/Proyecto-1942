@@ -39,7 +39,8 @@ sf::Text Ranking::getNombre()
 void Ranking::setNombre(sf::Text nombre)
 {
   std::string nombre_str = nombre.getString();
-  strcpy(_nombre, nombre_str.c_str() );
+  std::strncpy(_nombre, nombre_str.c_str(), sizeof(_nombre) - 1);
+  _nombre[sizeof(_nombre) - 1] = '\0';
 }
 
 int Ranking::getPuntos()
@@ -82,4 +83,3 @@ void Ranking::ordenarRanking(Ranking* registros, int cantidad)
     }
   }
 }
-
