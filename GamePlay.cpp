@@ -55,11 +55,9 @@ void GamePlay::iniciarBalasVector()
       /// INSTANCIAMOS UNA BALA DEL PERSONAJE.
 
       if(_soundfx) _sound.playDisparoPew();
+      _bullets.push_back(new Bullet({_player.getBulletOrigin().x, _player.getBulletOrigin().y,}));
+      _timerReload = 15;
     }
-    _bullets.push_back(new Bullet({_player.getBulletOrigin().x, _player.getBulletOrigin().y,}));
-    /// CADA 10MS PODEMOS DISPARAR.
-
-    _timerReload = 15 * 1;
 
   }
 
@@ -190,7 +188,9 @@ void GamePlay::update()
   }
 
   if (_frames % (60*14) == 0.f) {
-    _powerUp = new PowerUp();
+    if (_powerUp == nullptr) {
+      _powerUp = new PowerUp();
+    }
     _powerUp->respawn();
   }
 
@@ -229,6 +229,7 @@ void GamePlay::update()
 
         delete _vExplosiones[i];
         _vExplosiones.erase(_vExplosiones.begin() + i);
+        --i;
       }
     }
   }
@@ -240,8 +241,8 @@ void GamePlay::update()
     _player.respawn();
   } //  COLISION PLAYER-BULLETS B
 
-  if (isCollisionWithEnemy() ||
-      (isCollision_bullets_whitEnemyB())) {
+  isCollisionWithEnemy();
+  if (isCollision_bullets_whitEnemyB()) {
     _juego.changePuntos(100);
   } // DESTRUYO ENEMIGOS
 
@@ -250,7 +251,9 @@ void GamePlay::update()
     _player.respawn();
   } // COLISION PLAYER-ENEMYB
 
-  _powerUp->update();
+  if (_powerUp != nullptr) {
+    _powerUp->update();
+  }
   _player.update();
 
   if(!_bandera_startBossBullest)
@@ -258,14 +261,8 @@ void GamePlay::update()
     enemigo1.update();
   }
 
-  if(isCollision_bullets_whitEnemyB())
-  {
-      _juego.changePuntos(100);
-  } // DESTRUYO ENEMIGOS
-
   if (isCollision_WithBoss())
   {
-    _juego.changePuntos(100);
     _boss.lessVidas(); /// SACAMOS EN UNO LAS VIDAS
     int vidasJefe = _boss.getVidas();
     std::cout << " VIDAS " << vidasJefe <<std::endl;
@@ -296,7 +293,7 @@ void GamePlay::update()
     _player.respawn();
   } // COLISION PLAYER-ENEMY A
 
-  if (_player.isCollision(*_powerUp)) {
+  if (_powerUp != nullptr && _player.isCollision(*_powerUp)) {
     _juego.addVidas();
     _powerUp->hidePowerUp();
     //std::cout << "entra aca o no? " << std::endl;
@@ -344,6 +341,7 @@ bool GamePlay::isCollision_bulletsBoss_withPersonaje()
     {
       delete _bullets_Boss[i];
       _bullets_Boss.erase(_bullets_Boss.begin() + i);
+      --i;
       std::cout << "COLLISION -> BALAS BOSS WHIT PERSONAJE" << std::endl;
       result = true;
     }
@@ -353,6 +351,7 @@ bool GamePlay::isCollision_bulletsBoss_withPersonaje()
       {
         delete _bullets_Boss[i];
         _bullets_Boss.erase(_bullets_Boss.begin() + i);
+        --i;
       std::cout << "DELETE -> BALAS BOSS SALIERON DE LA PANTALLA" << std::endl;
       }
     }
@@ -370,11 +369,13 @@ bool GamePlay::isCollision_vBullestEnemyB_whitPersonaje()
     if (_bullets_vEnemyB[i]->isCollision(_player)) {
       delete _bullets_vEnemyB[i];
       _bullets_vEnemyB.erase(_bullets_vEnemyB.begin() + i);
+      --i;
       result = true;
     } else {
       if (_bullets_vEnemyB[i]->getBounds().top + _bullets_vEnemyB[i]->getBounds().height > 800) {
         delete _bullets_vEnemyB[i];
         _bullets_vEnemyB.erase(_bullets_vEnemyB.begin() + i);
+        --i;
       }
     }
   }
@@ -390,11 +391,13 @@ bool GamePlay::isCollision_vEnemyB_withPersonaje()
     if (_vEnemiesB[i]->isCollision(_player)) {
       delete _vEnemiesB[i];
       _vEnemiesB.erase(_vEnemiesB.begin() + i);
+      --i;
       result = true;
     } else {
       if (_vEnemiesB[i]->getBounds().top + _vEnemiesB[i]->getBounds().height > 800) {
         delete _vEnemiesB[i];
         _vEnemiesB.erase(_vEnemiesB.begin() + i);
+        --i;
       }
     }
   }
@@ -411,11 +414,13 @@ bool GamePlay::isCollisionWithPersonaje() // cuando te disparan
     if (_enemyBullets[i]->isCollision(_player)) {
       delete _enemyBullets[i];
       _enemyBullets.erase(_enemyBullets.begin() + i);
+      --i;
       result = true;
     } else {/// ELIMINAMOS DE LA PANTALLA
       if (_enemyBullets[i]->getBounds().top + _enemyBullets[i]->getBounds().height > 800) {
         delete _enemyBullets[i];
         _enemyBullets.erase(_enemyBullets.begin() + i);
+        --i;
       }
     }
   }
@@ -434,7 +439,7 @@ bool GamePlay::isCollisionWithEnemy() // cuando destruis aviones enemigos
       delete _bullets[i];
       _bullets.erase(_bullets.begin() + i);
 
-      _explosion = Explosion(enemigo1.getPosition().x, enemigo1.getPosition().y);
+      _explosion.reset(enemigo1.getPosition().x, enemigo1.getPosition().y);
       _isExplosionActive = true;  // ACTIVA LA ANIMACION
       _frameExplosion = 0.0f;     // ESTAMOS EN EL PRIMER FRAME
 
@@ -463,7 +468,7 @@ bool GamePlay::isCollision_WithBoss(){
       delete _bullets[i];
       _bullets.erase(_bullets.begin() + i);
 
-      _explosion = Explosion(_boss.getPosition().x, _boss.getPosition().y);
+      _explosion.reset(_boss.getPosition().x, _boss.getPosition().y);
       _isExplosionActiveBoss = true;  // ACTIVA LA ANIMACION
       _frameExplosionBoss = 0.0f;     // ESTAMOS EN EL PRIMER FRAME
 
@@ -525,7 +530,9 @@ void GamePlay::draw(sf::RenderTarget &target, sf::RenderStates states) const
       target.draw(_boss,states);
     }
 
-    target.draw(*_powerUp, states);
+    if (_powerUp != nullptr) {
+      target.draw(*_powerUp, states);
+    }
 
 
     for (int i = 0; i < _bullets.size(); i++) {
@@ -604,6 +611,4 @@ bool GamePlay::getNivelTermiando()const
 //{
 //  return _juego.getVida();;
 //}
-
-
 

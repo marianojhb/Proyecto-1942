@@ -31,7 +31,9 @@ void Player::changePuntos(int puntos)
 
 void Player::changeVidas()
 {
-  _vida--;
+  if (_vida > 0) {
+    _vida--;
+  }
 }
 
 void Player::addVidas()
@@ -58,5 +60,4 @@ int Player::getPuntos() const
 
 
 */
-
 

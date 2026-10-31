@@ -17,6 +17,18 @@ Explosion::Explosion(int horizontal, int vertical)
 
 }
 
+void Explosion::reset(int horizontal, int vertical)
+{
+  if (_texture == nullptr) {
+    _texture = new sf::Texture;
+    _texture->loadFromFile("assets/sprites/1942-sprites-effects.png");
+    _sprite.setTexture(*_texture);
+  }
+  _sprite.setPosition(horizontal, vertical);
+  _sprite.setTextureRect({1,110,32,32});
+  _sprite.setScale(1, 1);
+}
+
 void Explosion::smallExplosion(float &frame)
 {
   /// Dependiendo del rectangulo , tengo que dibujarlo...
@@ -53,6 +65,5 @@ void Explosion::draw(sf::RenderTarget &target, sf::RenderStates states)const
 {
   target.draw(_sprite, states);
 }
-
 
 

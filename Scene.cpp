@@ -133,7 +133,7 @@ void Scene::update()
 bool Scene::getJuegoTerminado()
 {
 
-  if (_gamePlay.getVidas() == 0
+  if (_gamePlay.getVidas() <= 0
       || (_gamePlay.getNivelTermiando()) ) /// SALIDA SI TERMINA LOS NIVELES
   {
 
@@ -320,7 +320,6 @@ void Scene::musicaEndStop(sf::Sound &stagecompleted) const
   TRANSFORMACION , AL BOUDS ,
   EL X E Y SON RELATIVOS
 */
-
 
 
 
