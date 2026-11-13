@@ -303,7 +303,7 @@ void frame(void* context) {
         app.enemiesB.size() < kMaxEnemyB) {
         app.enemiesB.push_back(makeEnemyB());
     }
-    if (!app.bossActive && !app.bossDying && app.frames % 120 == 0) {
+    if (app.frames < kBossFireStartFrame && app.frames % 120 == 0) {
         spawnAimedBullet(app.hostileBullets, enemy.x + 20, enemy.y + 54,
                          app.playerX + spriteWidth / 2.f,
                          app.playerY + spriteHeight / 2.f);
@@ -317,7 +317,7 @@ void frame(void* context) {
         approach(e.y, e.targetY);
         if (std::abs(e.x - e.targetX) <= 15.f ||
             std::abs(e.y - e.targetY) <= 15.f) chooseTarget(e);
-        if (--e.fireCooldown <= 0) {
+        if (app.frames < kBossFireStartFrame && --e.fireCooldown <= 0) {
             // EnemyB uses a downward projectile at 7 pixels per frame.
             app.hostileBullets.push_back({e.x - 50.f, e.y - 30.f, 0.f, 7.f, false});
             e.fireCooldown = kEnemyBFireFrames;
@@ -367,12 +367,19 @@ void frame(void* context) {
     }
     if (app.bossActive) {
         app.bossY = std::max(0.f, app.bossY - 2.2f);
-        if (app.frames >= kBossFireStartFrame && app.bossY <= 0.f && --app.bossCooldown <= 0 &&
-            app.hostileBullets.size() < kBossBulletCap) {
-            spawnAimedBullet(app.hostileBullets, 280.f, app.bossY + kBossHeight,
-                             app.playerX + spriteWidth / 2.f,
-                             app.playerY + spriteHeight / 2.f);
-            app.bossCooldown = 60;
+        // Original GamePlay.cpp: nine projectiles in a 30..150 degree fan.
+        // Wait until the previous volley has cleared before launching another.
+        if (app.frames >= kBossFireStartFrame && app.bossY <= 0.f &&
+            --app.bossCooldown <= 0 && app.hostileBullets.empty()) {
+            constexpr float kPi = 3.14159265358979323846f;
+            for (int degrees = 30; degrees <= 150; degrees += 15) {
+                const float radians = degrees * kPi / 180.f;
+                app.hostileBullets.push_back({
+                    170.f + 115.f, app.bossY + 170.f,
+                    std::cos(radians) * 5.f, std::sin(radians) * 5.f, true
+                });
+            }
+            app.bossCooldown = 180;
         }
         SDL_Rect bossRect{170, static_cast<int>(app.bossY), kBossWidth, kBossHeight};
         for (auto b = app.bullets.begin(); b != app.bullets.end();) {
@@ -486,7 +493,8 @@ void frame(void* context) {
     }
     SDL_Rect enemyDestination{static_cast<int>(enemy.x), static_cast<int>(enemy.y),
                               kEnemyWidth, kEnemyHeight};
-    SDL_RenderCopy(app.renderer, app.enemySheet, &kEnemySource, &enemyDestination);
+    if (app.frames < kBossFireStartFrame)
+        SDL_RenderCopy(app.renderer, app.enemySheet, &kEnemySource, &enemyDestination);
     for (const auto& e : app.enemiesB) {
         SDL_Rect dest{static_cast<int>(e.x), static_cast<int>(e.y),
                       kEnemyBSize, kEnemyBSize};
