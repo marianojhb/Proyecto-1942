@@ -21,6 +21,7 @@ Open http://localhost:8080/proyecto1942.html.
 - Space: fire one bullet per key press (maximum five active bullets, 15-frame reload)
 - M: toggle original MP3 sound effects (audio unlocks after user interaction)
 - R: restart after game over or victory
+- P: spawn a visible power-up immediately for testing
 - Escape: stop game loop
 
 ## Verification
@@ -85,7 +86,7 @@ This phase uses Web Audio synthesized effects, not the original MP3 recordings. 
 - [ ] Shooting plays original pew-pew-disparo.mp3
 - [ ] Hits and damage play original impact_explosion_03.mp3
 - [ ] M mutes and unmutes sounds
-- [ ] A random power-up appears every 14 seconds and descends
+- [ ] A random power-up first appears after 5 seconds, then every 14 seconds, and descends
 - [ ] Collecting the power-up adds one life
 - [ ] Boss arrives at 20 seconds, rather than after 1500 points
 - [ ] Boss starts shooting at 28 seconds
@@ -96,3 +97,7 @@ Browser audio requires a user interaction before playback. The original boss use
 ## Next
 
 Refine boss mechanics and enemy waves; improve audio overlap and performance.
+
+## Power-up visibility fix
+
+Power-ups now first spawn at five seconds, within the visible screen, with a yellow outline and +1 LIFE label. Subsequent spawns are every 14 seconds. Press P to test without waiting; the browser console logs each spawn.
