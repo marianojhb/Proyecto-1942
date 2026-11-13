@@ -49,7 +49,9 @@ constexpr int kBossStartFrame = 60 * 20;
 constexpr int kBossFireStartFrame = 60 * 28;
 constexpr int kPowerUpInterval = 60 * 14;
 constexpr int kFirstPowerUpFrame = 60 * 5;
-constexpr int kBossHealth = 12;
+constexpr int kBossHealth = 50;
+constexpr int kBossDeathFrames = 90;
+constexpr int kBossBulletCap = 9;
 constexpr float kScrollSpeed = 2.3f;
 constexpr int kExplosionFrames = 40;
 constexpr int kInvulnerableFrames = 90;
@@ -116,6 +118,9 @@ struct App {
     bool powerUpTestKey = false;
     bool bossActive = false;
     bool victory = false;
+    bool bossDying = false;
+    int bossDeathTimer = 0;
+    int bossHitFlash = 0;
     PowerUp powerUp;
     int bossHp = kBossHealth;
     float bossY = -kBossHeight;
@@ -177,6 +182,9 @@ void resetGame(App& app) {
     app.bossHp = kBossHealth;
     app.bossY = -kBossHeight;
     app.bossCooldown = 0;
+    app.bossDying = false;
+    app.bossDeathTimer = 0;
+    app.bossHitFlash = 0;
     app.powerUp = PowerUp{};
     app.powerUpTestKey = false;
 }
@@ -293,11 +301,11 @@ void frame(void* context) {
         app.powerUp.y += kScrollSpeed;
         if (app.powerUp.y > kHeight + 45) app.powerUp.active = false;
     }
-    if (app.frames % kEnemyBSpawnFrames == 0 &&
+    if (!app.bossActive && !app.bossDying && app.frames % kEnemyBSpawnFrames == 0 &&
         app.enemiesB.size() < kMaxEnemyB) {
         app.enemiesB.push_back(makeEnemyB());
     }
-    if (app.frames % 120 == 0) {
+    if (!app.bossActive && !app.bossDying && app.frames % 120 == 0) {
         spawnAimedBullet(app.hostileBullets, enemy.x + 20, enemy.y + 54,
                          app.playerX + spriteWidth / 2.f,
                          app.playerY + spriteHeight / 2.f);
@@ -350,21 +358,23 @@ void frame(void* context) {
     }
 
     // Simplified level progression: boss encounter after earning enough points.
-    if (!app.bossActive && !app.victory && app.frames >= kBossStartFrame &&
+    if (!app.bossActive && !app.bossDying && !app.victory && app.frames >= kBossStartFrame &&
         app.frames == kBossStartFrame) {
         app.bossActive = true;
         app.enemiesB.clear();
         app.hostileBullets.clear();
-        app.bossY = -kBossHeight;
+        app.bossY = static_cast<float>(kHeight + 50);
         app.bossHp = kBossHealth;
+        app.bossCooldown = 180;
     }
     if (app.bossActive) {
-        app.bossY = std::min(35.f, app.bossY + 2.2f);
-        if (app.frames >= kBossFireStartFrame && app.bossY >= 35.f && --app.bossCooldown <= 0) {
+        app.bossY = std::max(0.f, app.bossY - 2.2f);
+        if (app.frames >= kBossFireStartFrame && app.bossY <= 0.f && --app.bossCooldown <= 0 &&
+            app.hostileBullets.size() < kBossBulletCap) {
             spawnAimedBullet(app.hostileBullets, 280.f, app.bossY + kBossHeight,
                              app.playerX + spriteWidth / 2.f,
                              app.playerY + spriteHeight / 2.f);
-            app.bossCooldown = 75;
+            app.bossCooldown = 60;
         }
         SDL_Rect bossRect{170, static_cast<int>(app.bossY), kBossWidth, kBossHeight};
         for (auto b = app.bullets.begin(); b != app.bullets.end();) {
@@ -373,17 +383,33 @@ void frame(void* context) {
             if (intersects(bossRect, bulletRect)) {
                 b = app.bullets.erase(b);
                 --app.bossHp;
+                app.bossHitFlash = 8;
                 if (app.soundEnabled) playOriginalSound(1);
                 if (app.bossHp <= 0) {
                     app.bossActive = false;
-                    app.victory = true;
+                    app.bossDying = true;
+                    app.bossDeathTimer = kBossDeathFrames;
                     app.score += 1000;
                     app.hostileBullets.clear();
+                    app.enemiesB.clear();
                     app.explosions.push_back({220, static_cast<int>(app.bossY) + 60, 0, 3});
-                    if (app.soundEnabled) playOriginalSound(2);
+                    if (app.soundEnabled) playOriginalSound(1);
                     break;
                 }
             } else ++b;
+        }
+    }
+
+    if (app.bossHitFlash > 0) --app.bossHitFlash;
+    if (app.bossDying) {
+        if (app.bossDeathTimer % 12 == 0) {
+            app.explosions.push_back({static_cast<int>(randomRange(170, 365)),
+                static_cast<int>(app.bossY + randomRange(20, 140)), 0, 3});
+            if (app.soundEnabled) playOriginalSound(1);
+        }
+        if (--app.bossDeathTimer <= 0) {
+            app.bossDying = false;
+            app.victory = true;
         }
     }
 
@@ -487,10 +513,21 @@ void frame(void* context) {
         SDL_RenderDrawRect(app.renderer, &outline);
         drawText(app, "+1 LIFE", std::max(0, dest.x - 18), std::max(50, dest.y - 30));
     }
-    if (app.bossActive) {
+    if (app.bossActive || app.bossDying) {
         SDL_Rect bossDest{170, static_cast<int>(app.bossY), kBossWidth, kBossHeight};
-        SDL_RenderCopy(app.renderer, app.bossSheet, &kBossSource, &bossDest);
+        if (!app.bossDying || (app.bossDeathTimer / 5) % 2 == 0) {
+            SDL_RenderCopy(app.renderer, app.bossSheet, &kBossSource, &bossDest);
+        }
+        if (app.bossHitFlash > 0) {
+            SDL_SetRenderDrawBlendMode(app.renderer, SDL_BLENDMODE_BLEND);
+            SDL_SetRenderDrawColor(app.renderer, 255, 255, 255, 90);
+            SDL_RenderFillRect(app.renderer, &bossDest);
+            SDL_SetRenderDrawBlendMode(app.renderer, SDL_BLENDMODE_NONE);
+        }
         drawText(app, "BOSS HP " + std::to_string(app.bossHp), 350, 20);
+        SDL_Rect bar{340, 52, 245 * std::max(0, app.bossHp) / kBossHealth, 10};
+        SDL_SetRenderDrawColor(app.renderer, 230, 65, 65, 255);
+        SDL_RenderFillRect(app.renderer, &bar);
     }
     for (const auto& effect : app.explosions) {
         // Original Explosion.cpp advances 0.2 per update and switches every 1.5.
