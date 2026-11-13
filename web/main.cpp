@@ -30,6 +30,20 @@ EM_JS(void, playOriginalSound, (int kind), {
     } catch (e) { console.warn('Audio playback:', e); }
 });
 
+EM_JS(void, setThemeMusic, (int enabled), {
+    try {
+        Module.themeMusic = Module.themeMusic || (function() {
+            var bytes = FS.readFile('/assets/sounds/themes/01_main_theme_v1_stereo.mp3');
+            var audio = new Audio(URL.createObjectURL(new Blob([bytes], {type: 'audio/mpeg'})));
+            audio.loop = true;
+            audio.volume = 0.28;
+            return audio;
+        })();
+        if (enabled) Module.themeMusic.play().catch(function() {});
+        else Module.themeMusic.pause();
+    } catch (e) { console.warn('Theme music:', e); }
+});
+
 namespace {
 constexpr int kWidth = 600;
 constexpr int kHeight = 800;
@@ -113,6 +127,9 @@ struct App {
     SDL_Texture* background = nullptr;
     SDL_Texture* effects = nullptr;
     SDL_Texture* bossSheet = nullptr;
+    SDL_Texture* menuLogo = nullptr;
+    bool inMenu = true;
+    bool menuKeyHeld = false;
     bool soundEnabled = true;
     bool mutedKey = false;
     bool powerUpTestKey = false;
@@ -201,8 +218,41 @@ void frame(void* context) {
     }
 
     const Uint8* keys = SDL_GetKeyboardState(nullptr);
+    if (app.inMenu) {
+        const bool start = keys[SDL_SCANCODE_RETURN] || keys[SDL_SCANCODE_SPACE];
+        if (start && !app.menuKeyHeld) {
+            app.inMenu = false;
+            resetGame(app);
+            if (app.soundEnabled) setThemeMusic(1);
+        }
+        app.menuKeyHeld = start;
+        if (app.inMenu) {
+            SDL_SetRenderDrawColor(app.renderer, 8, 17, 36, 255);
+            SDL_RenderClear(app.renderer);
+            if (app.menuLogo) {
+                int w = 0, h = 0;
+                SDL_QueryTexture(app.menuLogo, nullptr, nullptr, &w, &h);
+                if (w > 0 && h > 0) {
+                    const float scale = std::min(2.f, std::min(500.f / w, 230.f / h));
+                    SDL_Rect logo{(kWidth - static_cast<int>(w * scale)) / 2, 195,
+                                  static_cast<int>(w * scale), static_cast<int>(h * scale)};
+                    SDL_RenderCopy(app.renderer, app.menuLogo, nullptr, &logo);
+                }
+            }
+            if ((SDL_GetTicks() / 500) % 2 == 0)
+                drawText(app, "INSERT COIN", 195, 450);
+            drawText(app, "ENTER / SPACE - JUGAR", 115, 535);
+            drawText(app, "ARROWS / WASD - MOVE", 115, 590);
+            drawText(app, "SPACE - FIRE   M - AUDIO", 80, 630);
+            SDL_RenderPresent(app.renderer);
+            return;
+        }
+    }
     if (app.gameOver || app.victory) {
-        if (keys[SDL_SCANCODE_R]) resetGame(app);
+        if (keys[SDL_SCANCODE_R]) {
+            resetGame(app);
+            if (app.soundEnabled) setThemeMusic(1);
+        }
         else {
             SDL_SetRenderDrawColor(app.renderer, 8, 17, 36, 255);
             SDL_RenderClear(app.renderer);
@@ -214,7 +264,10 @@ void frame(void* context) {
         }
     }
     const bool mute = keys[SDL_SCANCODE_M];
-    if (mute && !app.mutedKey) app.soundEnabled = !app.soundEnabled;
+    if (mute && !app.mutedKey) {
+        app.soundEnabled = !app.soundEnabled;
+        setThemeMusic(app.soundEnabled ? 1 : 0);
+    }
     app.mutedKey = mute;
     int dx = 0, dy = 0;
     if (keys[SDL_SCANCODE_RIGHT] || keys[SDL_SCANCODE_D]) dx += kSpeed;
@@ -556,7 +609,7 @@ int main() {
         SDL_Quit();
         return 1;
     }
-    App app;
+    static App app;
     app.window = SDL_CreateWindow("Proyecto 1942 - Player Port",
                                   SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
                                   kWidth, kHeight, SDL_WINDOW_SHOWN);
@@ -628,6 +681,9 @@ int main() {
         std::cerr << "Cannot load boss sprite: " << IMG_GetError() << '\n';
         return 1;
     }
+    app.menuLogo = IMG_LoadTexture(app.renderer, "assets/sprites/logo.png");
+    if (!app.menuLogo)
+        std::cerr << "Menu logo missing: " << IMG_GetError() << '\n';
     emscripten_set_main_loop_arg(frame, &app, 0, 1);
     return 0;
 }
