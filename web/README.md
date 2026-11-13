@@ -1,39 +1,34 @@
-# Proyecto-1942 — Browser proof of concept
+# Proyecto-1942 — Phase 2: Player sprite
 
-This is an **isolated technical experiment**, not a port of the original SFML game yet. It draws a movable placeholder square using C++17, SDL2 and Emscripten.
-
-## Requirements
-
-Install the Emscripten SDK (emsdk) and CMake. Activate the SDK in your shell so that `emcmake` and `em++` are available.
+The browser prototype now renders the original player sprite sheet from `assets/sprites/1942-sprites-player.png` using SDL2_image and Emscripten. The original SFML desktop code remains untouched.
 
 ## Build
 
-From the repository root:
+From the repository root, with Emscripten activated:
 
 ```sh
 emcmake cmake -S web -B web/build -DCMAKE_BUILD_TYPE=Release
 cmake --build web/build -j
+python3 -m http.server 8080 --directory web/build
 ```
 
-## Run locally
+Open http://localhost:8080/proyecto1942.html.
 
-```sh
-cd web/build
-python3 -m http.server 8080
-```
+## Controls
 
-Open http://localhost:8080/proyecto1942.html. Use arrow keys or WASD to move the blue square. Click the canvas first if keyboard focus is needed.
+- Arrow keys / WASD: move player
+- Left/right: display corresponding original turning sprites
+- Space: one-shot input is logged in browser console (no projectiles yet)
+- Escape: stop game loop
 
-## Acceptance criteria
+## Verification
 
-- [ ] Browser loads generated HTML, JS and WASM without console errors
-- [ ] Canvas displays at 600 × 800
-- [ ] Arrow keys / WASD move the square
-- [ ] Player stays inside the canvas
-- [ ] No native SFML dependencies are needed for this proof of concept
+- [ ] Build emits HTML, JS, WASM and a `.data` asset package
+- [ ] Browser renders the original plane sprite rather than a blue square
+- [ ] Plane moves and changes appearance on left/right turns
+- [ ] Space logs only once per press (check browser console)
+- [ ] Desktop SFML files remain unchanged
 
-## Next step
+## Next
 
-After verifying the browser toolchain, extract reusable gameplay logic from the SFML desktop project and add a platform-independent game state.
-
-No original desktop source files have been modified.
+Port the bullet and projectile logic after verifying player rendering and input.
