@@ -269,7 +269,7 @@ void loadRanking(App& app) {
             std::getline(fields, name) && !name.empty()) {
             char* end = nullptr;
             const long points = std::strtol(score.c_str(), &end, 10);
-            if (end != score.c_str() && *end == '\\0' && points >= 0 && points <= 2147483647L)
+            if (end != score.c_str() && *end == 0 && points >= 0 && points <= 2147483647L)
                 app.ranking.push_back({static_cast<int>(points), date, name});
         }
     }
