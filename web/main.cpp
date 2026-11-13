@@ -169,9 +169,8 @@ struct App {
     SDL_Rect source{107, 17, 32, 18};
 };
 
-void drawText(App& app, const std::string& message, int x, int y, int size = 24) {
+void drawText(App& app, const std::string& message, int x, int y, int size = 24, SDL_Color color = {255, 255, 255, 255}) {
     if (!app.font) return;
-    SDL_Color color{255, 255, 255, 255};
     SDL_Surface* surface = TTF_RenderUTF8_Blended(app.font, message.c_str(), color);
     if (!surface) return;
     SDL_Texture* texture = SDL_CreateTextureFromSurface(app.renderer, surface);
@@ -281,12 +280,13 @@ void frame(void* context) {
             }
             if (app.menuPage == 0 && !app.menuOptions) {
                 if ((SDL_GetTicks() / 500) % 2 == 0)
-                    drawText(app, "INSERT COIN", 195, 450);
+                    drawText(app, "INSERT COIN", 195, 450, 24, SDL_Color{255, 255, 0, 255});
                 drawText(app, "PRESS ENTER", 190, 540);
             } else if (app.menuPage == 0) {
                 const char* items[] = {"JUGAR", "CONFIGURACION", "RANKING", "CREDITOS", "SALIR"};
                 for (int i = 0; i < 5; ++i) {
-                    drawText(app, items[i], 175, 350 + i * 50);
+                    drawText(app, items[i], 175, 350 + i * 50, 24,
+                             i == app.menuSelection ? SDL_Color{0, 255, 0, 255} : SDL_Color{255, 255, 255, 255});
                 }
                 if (app.menuPlane) {
                     SDL_Rect plane{40, 350 + app.menuSelection * 50, 95, 55};
@@ -297,11 +297,14 @@ void frame(void* context) {
             } else if (app.menuPage == 1) {
                 drawText(app, "CONFIGURACION", 160, 250);
                 drawText(app, std::string(app.subSelection == 0 ? "> " : "  ") +
-                         "SOUNDFX  " + (app.soundEnabled ? "ON" : "OFF"), 160, 350);
+                         "SOUNDFX  " + (app.soundEnabled ? "ON" : "OFF"), 160, 350, 24,
+                         app.subSelection == 0 ? SDL_Color{0, 255, 0, 255} : SDL_Color{255, 255, 255, 255});
                 drawText(app, std::string(app.subSelection == 1 ? "> " : "  ") +
-                         "MUSICA   " + (app.musicEnabled ? "ON" : "OFF"), 160, 400);
+                         "MUSICA   " + (app.musicEnabled ? "ON" : "OFF"), 160, 400, 24,
+                         app.subSelection == 1 ? SDL_Color{0, 255, 0, 255} : SDL_Color{255, 255, 255, 255});
                 drawText(app, std::string(app.subSelection == 2 ? "> " : "  ") +
-                         "VOLVER", 160, 450);
+                         "VOLVER", 160, 450, 24,
+                         app.subSelection == 2 ? SDL_Color{0, 255, 0, 255} : SDL_Color{255, 255, 255, 255});
             } else if (app.menuPage == 2) {
                 drawText(app, "RANKING", 225, 270);
                 drawText(app, "MEJOR PUNTAJE: " + std::to_string(app.bestScore), 125, 370);
