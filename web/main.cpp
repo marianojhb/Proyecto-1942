@@ -100,6 +100,16 @@ EM_JS(char*, loadScores, (), {
     try { data = localStorage.getItem('proyecto1942.ranking.v1') || ''; } catch(e) {}
     return stringToNewUTF8(data);
 });
+
+EM_JS(char*, askRankingName, (), {
+    var name = 'PLAYER';
+    try {
+        var answer = window.prompt('Nuevo record! Nombre para el ranking (max. 12 caracteres):', 'PLAYER');
+        if (answer) name = answer.replace(/[|\\r\\n]/g, ' ').trim().slice(0, 12) || 'PLAYER';
+    } catch(e) {}
+    return stringToNewUTF8(name);
+});
+
 EM_JS(void, saveScores, (const char* value), {
     try { localStorage.setItem('proyecto1942.ranking.v1', UTF8ToString(value)); } catch(e) {}
 });
@@ -287,7 +297,11 @@ void recordScore(App& app) {
     std::tm* local = std::localtime(&now);
     char date[16] = "----/--/--";
     if (local) std::strftime(date, sizeof(date), "%Y/%m/%d", local);
-    app.ranking.push_back({app.score, date, "PLAYER"});
+    if (app.ranking.size() >= 10 && app.score <= app.ranking.back().score) return;
+    char* name = askRankingName();
+    std::string playerName = name ? name : "PLAYER";
+    free(name);
+    app.ranking.push_back({app.score, date, playerName});
     std::stable_sort(app.ranking.begin(), app.ranking.end(), [](const auto& a, const auto& b) {
         return a.score > b.score;
     });
