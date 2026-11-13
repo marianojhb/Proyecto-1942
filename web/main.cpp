@@ -1,5 +1,7 @@
 #include <SDL.h>
 #include <SDL_image.h>
+#include <SDL_ttf.h>
+#include <string>
 #include <emscripten/emscripten.h>
 #include <algorithm>
 #include <iostream>
@@ -14,6 +16,8 @@ constexpr int kScale = 3;
 constexpr const char* kPlayerSprite = "assets/sprites/1942-sprites-player.png";
 constexpr const char* kProjectileSprite = "assets/sprites/1942-sprites-projectiles.png";
 constexpr const char* kEnemySprite = "assets/sprites/1942-sprites-enemy.png";
+constexpr const char* kFontFile = "assets/fonts/MONOCOQUE_FUENTE.ttf";
+constexpr int kInvulnerableFrames = 90;
 constexpr SDL_Rect kEnemySource{59, 57, 15, 14};
 constexpr int kEnemyWidth = 45;
 constexpr int kEnemyHeight = 42;
@@ -36,7 +40,11 @@ struct App {
     SDL_Texture* projectileSheet = nullptr;
     SDL_Texture* enemySheet = nullptr;
     Enemy enemy;
+    TTF_Font* font = nullptr;
     int score = 0;
+    int lives = 3;
+    int invulnerableFrames = 0;
+    bool gameOver = false;
     std::vector<Bullet> bullets;
     int reloadFrames = 0;
     int playerX = (kWidth - 96) / 2 + 2;
@@ -45,6 +53,34 @@ struct App {
     bool shooting = false;
     SDL_Rect source{107, 17, 32, 18};
 };
+
+void drawText(App& app, const std::string& message, int x, int y, int size = 24) {
+    if (!app.font) return;
+    SDL_Color color{255, 255, 255, 255};
+    SDL_Surface* surface = TTF_RenderUTF8_Blended(app.font, message.c_str(), color);
+    if (!surface) return;
+    SDL_Texture* texture = SDL_CreateTextureFromSurface(app.renderer, surface);
+    if (texture) {
+        SDL_Rect dest{x, y, surface->w, surface->h};
+        SDL_RenderCopy(app.renderer, texture, nullptr, &dest);
+        SDL_DestroyTexture(texture);
+    }
+    SDL_FreeSurface(surface);
+    (void)size;
+}
+
+void resetGame(App& app) {
+    app.score = 0;
+    app.lives = 3;
+    app.invulnerableFrames = 0;
+    app.gameOver = false;
+    app.playerX = (kWidth - 96) / 2 + 2;
+    app.playerY = 700;
+    app.bullets.clear();
+    app.reloadFrames = 0;
+    app.shooting = false;
+    app.enemy = Enemy{};
+}
 
 void frame(void* context) {
     auto& app = *static_cast<App*>(context);
@@ -60,6 +96,18 @@ void frame(void* context) {
     }
 
     const Uint8* keys = SDL_GetKeyboardState(nullptr);
+    if (app.gameOver) {
+        if (keys[SDL_SCANCODE_R]) resetGame(app);
+        else {
+            SDL_SetRenderDrawColor(app.renderer, 8, 17, 36, 255);
+            SDL_RenderClear(app.renderer);
+            drawText(app, "GAME OVER", 190, 310);
+            drawText(app, "SCORE " + std::to_string(app.score), 190, 355);
+            drawText(app, "PRESS R TO RESTART", 115, 415);
+            SDL_RenderPresent(app.renderer);
+            return;
+        }
+    }
     int dx = 0, dy = 0;
     if (keys[SDL_SCANCODE_RIGHT] || keys[SDL_SCANCODE_D]) dx += kSpeed;
     if (keys[SDL_SCANCODE_LEFT] || keys[SDL_SCANCODE_A]) dx -= kSpeed;
@@ -123,10 +171,22 @@ void frame(void* context) {
         }
     }
 
+    SDL_Rect playerRect{app.playerX, app.playerY, spriteWidth, spriteHeight};
+    if (app.invulnerableFrames > 0) --app.invulnerableFrames;
+    if (app.invulnerableFrames == 0 && intersects(playerRect, enemyRect)) {
+        --app.lives;
+        app.playerX = (kWidth - 96) / 2 + 2;
+        app.playerY = 700;
+        app.invulnerableFrames = kInvulnerableFrames;
+        respawnEnemy(enemy);
+        if (app.lives <= 0) app.gameOver = true;
+    }
+
     SDL_SetRenderDrawColor(app.renderer, 8, 17, 36, 255);
     SDL_RenderClear(app.renderer);
     SDL_Rect destination{app.playerX, app.playerY, spriteWidth, spriteHeight};
-    SDL_RenderCopy(app.renderer, app.spriteSheet, &app.source, &destination);
+    if (app.invulnerableFrames == 0 || (app.invulnerableFrames / 6) % 2 == 0)
+        SDL_RenderCopy(app.renderer, app.spriteSheet, &app.source, &destination);
     for (const auto& bullet : app.bullets) {
         SDL_Rect destinationBullet{bullet.x, bullet.y,
                                   kBulletSource.w * kScale,
@@ -137,6 +197,9 @@ void frame(void* context) {
     SDL_Rect enemyDestination{static_cast<int>(enemy.x), static_cast<int>(enemy.y),
                               kEnemyWidth, kEnemyHeight};
     SDL_RenderCopy(app.renderer, app.enemySheet, &kEnemySource, &enemyDestination);
+    drawText(app, "SCORE " + std::to_string(app.score), 10, 20);
+    drawText(app, "LIVES " + std::to_string(app.lives), 190, 20);
+    if (app.gameOver) drawText(app, "GAME OVER - PRESS R", 105, 370);
     SDL_RenderPresent(app.renderer);
 }
 }
@@ -144,6 +207,11 @@ void frame(void* context) {
 int main() {
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS) != 0) {
         std::cerr << "SDL_Init: " << SDL_GetError() << '\n';
+        return 1;
+    }
+    if (TTF_Init() != 0) {
+        std::cerr << "TTF_Init: " << TTF_GetError() << '\n';
+        SDL_Quit();
         return 1;
     }
     App app;
@@ -187,6 +255,18 @@ int main() {
         SDL_DestroyTexture(app.spriteSheet);
         SDL_DestroyRenderer(app.renderer);
         SDL_DestroyWindow(app.window);
+        SDL_Quit();
+        return 1;
+    }
+    app.font = TTF_OpenFont(kFontFile, 24);
+    if (!app.font) {
+        std::cerr << "Cannot load HUD font: " << TTF_GetError() << '\n';
+        SDL_DestroyTexture(app.enemySheet);
+        SDL_DestroyTexture(app.projectileSheet);
+        SDL_DestroyTexture(app.spriteSheet);
+        SDL_DestroyRenderer(app.renderer);
+        SDL_DestroyWindow(app.window);
+        TTF_Quit();
         SDL_Quit();
         return 1;
     }
