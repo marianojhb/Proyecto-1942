@@ -10,20 +10,24 @@
 #include <cstdlib>
 #include <cmath>
 
-EM_JS(void, playArcadeTone, (int kind), {
+// Read preloaded MP3 bytes from Emscripten's virtual filesystem.
+EM_JS(void, playOriginalSound, (int kind), {
     try {
-        var ctx = Module.arcadeAudio || (Module.arcadeAudio = new (window.AudioContext || window.webkitAudioContext)());
-        if (ctx.state === 'suspended') ctx.resume();
-        var osc = ctx.createOscillator(), gain = ctx.createGain();
-        var now = ctx.currentTime, duration = kind === 0 ? 0.09 : kind === 1 ? 0.23 : 0.5;
-        osc.type = kind === 0 ? 'square' : 'sawtooth';
-        osc.frequency.setValueAtTime(kind === 0 ? 850 : kind === 1 ? 220 : 420, now);
-        osc.frequency.exponentialRampToValueAtTime(kind === 0 ? 360 : kind === 1 ? 60 : 100, now + duration);
-        gain.gain.setValueAtTime(0.035, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
-        osc.connect(gain); gain.connect(ctx.destination);
-        osc.start(now); osc.stop(now + duration);
-    } catch(e) {}
+        var paths = [
+            '/assets/sounds/sfx/pew-pew-disparo.mp3',
+            '/assets/sounds/sfx/impact_explosion_03.mp3'
+        ];
+        var index = kind === 0 ? 0 : 1;
+        Module.originalSounds = Module.originalSounds || {};
+        if (!Module.originalSounds[index]) {
+            var bytes = FS.readFile(paths[index]);
+            var blob = new Blob([bytes], {type: 'audio/mpeg'});
+            Module.originalSounds[index] = URL.createObjectURL(blob);
+        }
+        var audio = new Audio(Module.originalSounds[index]);
+        audio.volume = index === 0 ? 0.15 : 0.10;
+        audio.play().catch(function() {});
+    } catch (e) { console.warn('Audio playback:', e); }
 });
 
 namespace {
@@ -41,7 +45,9 @@ constexpr const char* kBossFile = "assets/sprites/1942-sprites-enemy-copia.png";
 constexpr SDL_Rect kBossSource{68, 468, 65, 53};
 constexpr int kBossWidth = 260;
 constexpr int kBossHeight = 212;
-constexpr int kBossTriggerScore = 1500;
+constexpr int kBossStartFrame = 60 * 20;
+constexpr int kBossFireStartFrame = 60 * 28;
+constexpr int kPowerUpInterval = 60 * 14;
 constexpr int kBossHealth = 12;
 constexpr float kScrollSpeed = 2.3f;
 constexpr int kExplosionFrames = 40;
@@ -67,6 +73,7 @@ struct EnemyB {
     int fireCooldown = kEnemyBFireFrames;
 };
 struct HostileBullet { float x, y, vx, vy; bool aimed; };
+struct PowerUp { float x = 0, y = 0; int variant = 0; bool active = false; };
 float randomRange(int min, int max) {
     return static_cast<float>(min + std::rand() % (max - min + 1));
 }
@@ -107,6 +114,7 @@ struct App {
     bool mutedKey = false;
     bool bossActive = false;
     bool victory = false;
+    PowerUp powerUp;
     int bossHp = kBossHealth;
     float bossY = -kBossHeight;
     int bossCooldown = 0;
@@ -167,6 +175,7 @@ void resetGame(App& app) {
     app.bossHp = kBossHealth;
     app.bossY = -kBossHeight;
     app.bossCooldown = 0;
+    app.powerUp = PowerUp{};
 }
 
 void frame(void* context) {
@@ -223,7 +232,7 @@ void frame(void* context) {
         // Match Personaje::getBulletOrigin() (96 - 48) / 2 = 24.
         app.bullets.push_back({app.playerX + 24, app.playerY});
         app.reloadFrames = kReloadFrames;
-        if (app.soundEnabled) playArcadeTone(0);
+        if (app.soundEnabled) playOriginalSound(0);
     }
     app.shooting = space;
     for (auto& bullet : app.bullets) bullet.y -= kBulletSpeed;
@@ -265,6 +274,13 @@ void frame(void* context) {
     }
 
     ++app.frames;
+    if (app.frames % kPowerUpInterval == 0) {
+        app.powerUp = {randomRange(45, 530), -45.f, std::rand() % 8, true};
+    }
+    if (app.powerUp.active) {
+        app.powerUp.y += kScrollSpeed;
+        if (app.powerUp.y > kHeight + 45) app.powerUp.active = false;
+    }
     if (app.frames % kEnemyBSpawnFrames == 0 &&
         app.enemiesB.size() < kMaxEnemyB) {
         app.enemiesB.push_back(makeEnemyB());
@@ -322,7 +338,8 @@ void frame(void* context) {
     }
 
     // Simplified level progression: boss encounter after earning enough points.
-    if (!app.bossActive && app.score >= kBossTriggerScore) {
+    if (!app.bossActive && !app.victory && app.frames >= kBossStartFrame &&
+        app.frames == kBossStartFrame) {
         app.bossActive = true;
         app.enemiesB.clear();
         app.hostileBullets.clear();
@@ -331,7 +348,7 @@ void frame(void* context) {
     }
     if (app.bossActive) {
         app.bossY = std::min(35.f, app.bossY + 2.2f);
-        if (app.bossY >= 35.f && --app.bossCooldown <= 0) {
+        if (app.frames >= kBossFireStartFrame && app.bossY >= 35.f && --app.bossCooldown <= 0) {
             spawnAimedBullet(app.hostileBullets, 280.f, app.bossY + kBossHeight,
                              app.playerX + spriteWidth / 2.f,
                              app.playerY + spriteHeight / 2.f);
@@ -359,6 +376,15 @@ void frame(void* context) {
     }
 
     SDL_Rect playerRect{app.playerX, app.playerY, spriteWidth, spriteHeight};
+    if (app.powerUp.active) {
+        SDL_Rect powerRect{static_cast<int>(app.powerUp.x),
+                           static_cast<int>(app.powerUp.y), 45, 45};
+        if (intersects(playerRect, powerRect)) {
+            ++app.lives;
+            app.powerUp.active = false;
+            if (app.soundEnabled) playOriginalSound(1);
+        }
+    }
     if (app.invulnerableFrames > 0) --app.invulnerableFrames;
     bool playerHit = intersects(playerRect, enemyRect);
     for (const auto& e : app.enemiesB) {
@@ -437,6 +463,14 @@ void frame(void* context) {
                       src.w * kScale, src.h * kScale};
         SDL_RenderCopy(app.renderer, app.projectileSheet, &src, &dest);
     }
+    if (app.powerUp.active) {
+        SDL_Rect src{106 + (app.powerUp.variant == 7 ? 238 - 106 :
+                            app.powerUp.variant == 6 ? 220 - 106 :
+                            app.powerUp.variant * 19), 11, 15, 15};
+        SDL_Rect dest{static_cast<int>(app.powerUp.x),
+                      static_cast<int>(app.powerUp.y), 45, 45};
+        SDL_RenderCopy(app.renderer, app.projectileSheet, &src, &dest);
+    }
     if (app.bossActive) {
         SDL_Rect bossDest{170, static_cast<int>(app.bossY), kBossWidth, kBossHeight};
         SDL_RenderCopy(app.renderer, app.bossSheet, &kBossSource, &bossDest);
@@ -450,6 +484,7 @@ void frame(void* context) {
         SDL_RenderCopy(app.renderer, app.effects, &src, &dest);
     }
     drawText(app, "SCORE " + std::to_string(app.score), 10, 20);
+    drawText(app, "TIME " + std::to_string(app.frames / 60), 350, 55);
     drawText(app, "LIVES " + std::to_string(app.lives), 190, 20);
     drawText(app, app.soundEnabled ? "SOUND ON (M)" : "SOUND OFF (M)", 10, 765);
     if (app.victory) drawText(app, "MISSION COMPLETE - PRESS R", 80, 370);
