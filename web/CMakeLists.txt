@@ -43,7 +43,8 @@ set(MENU_PLANE "${CMAKE_CURRENT_SOURCE_DIR}/../assets/sprites/Personaje.png")
 set(MENU_FONT "${CMAKE_CURRENT_SOURCE_DIR}/../assets/fonts/fuente.ttf")
 set(CAPCOM_LOGO "${CMAKE_CURRENT_SOURCE_DIR}/../assets/sprites/Capcom.jfif")
 set(THEME_MUSIC "${CMAKE_CURRENT_SOURCE_DIR}/../assets/sounds/themes/01_main_theme_v1_stereo.mp3")
-foreach(ASSET IN ITEMS MENU_LOGO MENU_PLANE MENU_FONT CAPCOM_LOGO THEME_MUSIC)
+set(RANKING_MUSIC "${CMAKE_CURRENT_SOURCE_DIR}/../assets/sounds/themes/04_high_score_entry_stereo.mp3")
+foreach(ASSET IN ITEMS MENU_LOGO MENU_PLANE MENU_FONT CAPCOM_LOGO THEME_MUSIC RANKING_MUSIC)
   if(NOT EXISTS "${${ASSET}}")
     message(FATAL_ERROR "Missing menu asset: ${${ASSET}}")
   endif()
@@ -81,6 +82,7 @@ target_link_options(proyecto1942 PRIVATE
   "SHELL:--preload-file ${MENU_FONT}@assets/fonts/fuente.ttf"
   "SHELL:--preload-file ${CAPCOM_LOGO}@assets/sprites/Capcom.jfif"
   "SHELL:--preload-file ${THEME_MUSIC}@assets/sounds/themes/01_main_theme_v1_stereo.mp3"
+  "SHELL:--preload-file ${RANKING_MUSIC}@assets/sounds/themes/04_high_score_entry_stereo.mp3"
   "SHELL:--preload-file ${SFX_SHOT}@assets/sounds/sfx/pew-pew-disparo.mp3"
   "SHELL:--preload-file ${SFX_EXPLOSION}@assets/sounds/sfx/impact_explosion_03.mp3"
 )
