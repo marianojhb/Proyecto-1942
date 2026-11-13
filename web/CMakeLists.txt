@@ -33,6 +33,11 @@ foreach(ASSET IN ITEMS BACKGROUND_SPRITE EFFECTS_SPRITE)
   endif()
 endforeach()
 
+set(BOSS_SPRITE "${CMAKE_CURRENT_SOURCE_DIR}/../assets/sprites/1942-sprites-enemy-copia.png")
+if(NOT EXISTS "${BOSS_SPRITE}")
+  message(FATAL_ERROR "Boss sprite not found: ${BOSS_SPRITE}")
+endif()
+
 add_executable(proyecto1942 main.cpp)
 target_compile_features(proyecto1942 PRIVATE cxx_std_17)
 set_target_properties(proyecto1942 PROPERTIES SUFFIX ".html")
@@ -51,4 +56,5 @@ target_link_options(proyecto1942 PRIVATE
   "SHELL:--preload-file ${HUD_FONT}@assets/fonts/MONOCOQUE_FUENTE.ttf"
   "SHELL:--preload-file ${BACKGROUND_SPRITE}@assets/sprites/bg-maps-1942.png"
   "SHELL:--preload-file ${EFFECTS_SPRITE}@assets/sprites/1942-sprites-effects.png"
+  "SHELL:--preload-file ${BOSS_SPRITE}@assets/sprites/1942-sprites-enemy-copia.png"
 )
