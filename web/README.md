@@ -1,4 +1,4 @@
-# Proyecto-1942 — Phase 7: Scrolling background and explosions
+# Proyecto-1942 — Phase 8: Arcade audio and boss progression
 
 The browser prototype now renders the original player sprite sheet from `assets/sprites/1942-sprites-player.png` and original bullet sprite sheet using SDL2_image and Emscripten. The original SFML desktop code remains untouched.
 
@@ -19,7 +19,8 @@ Open http://localhost:8080/proyecto1942.html.
 - Arrow keys / WASD: move player
 - Left/right: display corresponding original turning sprites
 - Space: fire one bullet per key press (maximum five active bullets, 15-frame reload)
-- R: restart after game over
+- M: toggle synthesized arcade sound effects (audio unlocks after user interaction)
+- R: restart after game over or victory
 - Escape: stop game loop
 
 ## Verification
@@ -67,6 +68,18 @@ Open http://localhost:8080/proyecto1942.html.
 - [ ] Score, lives, shooting, collisions, and restart still work
 - [ ] No browser console errors
 
+## Phase 8 verification
+
+- [ ] Shooting, explosions and player damage play synthesized arcade sound effects
+- [ ] M toggles sound on and off
+- [ ] At 1500 points a boss appears using the original boss sprite
+- [ ] Boss fires aimed projectiles and takes 12 hits to defeat
+- [ ] Defeating the boss awards 1000 points and displays MISSION COMPLETE
+- [ ] R resets the game after victory
+- [ ] Original SFML sources remain unchanged
+
+This phase uses Web Audio synthesized effects, not the original MP3 recordings. Boss activation at 1500 points and 12 HP are browser-port progression rules; the original desktop boss has 50 HP.
+
 ## Next
 
-More original gameplay features, audio, and game progression.
+Original sound asset playback, power-ups, and more faithful stage progression.
