@@ -9,6 +9,9 @@
 #include <vector>
 #include <cstdlib>
 #include <cmath>
+#include <sstream>
+#include <ctime>
+#include <iomanip>
 
 // Read preloaded MP3 bytes from Emscripten's virtual filesystem.
 EM_JS(void, playOriginalSound, (int kind), {
@@ -62,6 +65,42 @@ EM_JS(void, setRankingMusic, (int enabled), {
             Module.rankingMusic.currentTime = 0;
         }
     } catch (e) { console.warn('Ranking music:', e); }
+});
+
+
+EM_JS(void, setMenuMusic, (int enabled), {
+    try {
+        if (!Module.menuMusic) {
+            var bytes = FS.readFile('/assets/sounds/themes/02_main_theme_v2_stereo.mp3');
+            var audio = new Audio(URL.createObjectURL(new Blob([bytes], {type: 'audio/mpeg'})));
+            audio.loop = true;
+            audio.volume = 0.20;
+            Module.menuMusic = audio;
+        }
+        if (enabled) {
+            if (Module.themeMusic) Module.themeMusic.pause();
+            if (Module.rankingMusic) Module.rankingMusic.pause();
+            Module.menuMusic.play().catch(function() {});
+        } else Module.menuMusic.pause();
+    } catch (e) { console.warn('Menu music:', e); }
+});
+
+EM_JS(int, readPreference, (const char* name, int fallback), {
+    try {
+        var value = localStorage.getItem(UTF8ToString(name));
+        return value === null ? fallback : (value === '1' ? 1 : 0);
+    } catch(e) { return fallback; }
+});
+EM_JS(void, writePreference, (const char* name, int enabled), {
+    try { localStorage.setItem(UTF8ToString(name), enabled ? '1' : '0'); } catch(e) {}
+});
+EM_JS(char*, loadScores, (), {
+    var data = '';
+    try { data = localStorage.getItem('proyecto1942.ranking.v1') || ''; } catch(e) {}
+    return stringToNewUTF8(data);
+});
+EM_JS(void, saveScores, (const char* value), {
+    try { localStorage.setItem('proyecto1942.ranking.v1', UTF8ToString(value)); } catch(e) {}
 });
 
 namespace {
@@ -150,9 +189,17 @@ struct App {
     SDL_Texture* menuLogo = nullptr;
     SDL_Texture* menuPlane = nullptr;
     SDL_Texture* capcomLogo = nullptr;
+    SDL_Texture* rankingBackground = nullptr;
     TTF_Font* menuFont = nullptr;
     TTF_Font* hudReadableFont = nullptr;
     bool inMenu = true;
+    bool confirmExit = false;
+    bool exitKeyHeld = false;
+    bool scoreRecorded = false;
+    float rankingScroll = 0.f;
+    float creditsScroll = 0.f;
+    struct ScoreEntry { int score; std::string date; std::string name; };
+    std::vector<ScoreEntry> ranking;
     bool menuKeyHeld = false;
     bool menuOptions = false;
     int menuSelection = 0;
@@ -208,7 +255,62 @@ void drawText(App& app, const std::string& message, int x, int y, int size = 24,
     (void)size;
 }
 
+
+void loadRanking(App& app) {
+    char* raw = loadScores();
+    if (!raw) return;
+    std::istringstream lines(raw);
+    std::string line;
+    while (std::getline(lines, line) && app.ranking.size() < 10) {
+        std::istringstream fields(line);
+        std::string score, date, name;
+        if (std::getline(fields, score, '|') && std::getline(fields, date, '|') &&
+            std::getline(fields, name) && !name.empty()) {
+            try {
+                int points = std::stoi(score);
+                if (points >= 0) app.ranking.push_back({points, date, name});
+            } catch (...) {}
+        }
+    }
+    free(raw);
+    std::sort(app.ranking.begin(), app.ranking.end(), [](const auto& a, const auto& b) {
+        return a.score > b.score;
+    });
+}
+void recordScore(App& app) {
+    if (app.scoreRecorded) return;
+    app.scoreRecorded = true;
+    app.bestScore = std::max(app.bestScore, app.score);
+    if (app.score <= 0) return;
+    std::time_t now = std::time(nullptr);
+    std::tm* local = std::localtime(&now);
+    char date[16] = "----/--/--";
+    if (local) std::strftime(date, sizeof(date), "%Y/%m/%d", local);
+    app.ranking.push_back({app.score, date, "PLAYER"});
+    std::stable_sort(app.ranking.begin(), app.ranking.end(), [](const auto& a, const auto& b) {
+        return a.score > b.score;
+    });
+    if (app.ranking.size() > 10) app.ranking.resize(10);
+    std::ostringstream output;
+    for (const auto& entry : app.ranking)
+        output << entry.score << "|" << entry.date << "|" << entry.name << "\n";
+    saveScores(output.str().c_str());
+}
+void drawMenuPlane(App& app, int y) {
+    if (app.menuPlane) {
+        SDL_Rect plane{40, y, 95, 55};
+        SDL_RenderCopy(app.renderer, app.menuPlane, nullptr, &plane);
+    } else drawText(app, ">", 115, y);
+}
+void drawSettingCircle(App& app, int y, bool enabled) {
+    SDL_SetRenderDrawColor(app.renderer, enabled ? 0 : 220, enabled ? 220 : 0, 0, 255);
+    SDL_Rect rect{500, y + 8, 20, 20};
+    SDL_RenderFillRect(app.renderer, &rect);
+}
+
 void resetGame(App& app) {
+    app.scoreRecorded = false;
+    app.confirmExit = false;
     app.score = 0;
     app.lives = 3;
     app.invulnerableFrames = 0;
@@ -241,8 +343,8 @@ void frame(void* context) {
     while (SDL_PollEvent(&event)) {
         if (event.type == SDL_QUIT) app.running = false;
         if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE &&
-            !app.inMenu && !app.gameOver && !app.victory)
-            app.running = false;
+            !event.key.repeat && !app.inMenu && !app.gameOver && !app.victory)
+            app.confirmExit = !app.confirmExit;
     }
     if (!app.running) {
         emscripten_cancel_main_loop();
@@ -257,7 +359,7 @@ void frame(void* context) {
         if (!up && !down && !back && !keys[SDL_SCANCODE_RETURN] && !keys[SDL_SCANCODE_SPACE])
             app.menuKeyHeld = false;
         if (!app.menuKeyHeld) {
-            if (back && app.menuPage != 0) { if (app.menuPage == 2) setRankingMusic(0); app.menuPage = 0; app.menuKeyHeld = true; }
+            if (back && app.menuPage != 0) { if (app.menuPage == 2) setRankingMusic(0); app.menuPage = 0; if (app.musicEnabled) setMenuMusic(1); app.menuKeyHeld = true; }
             else if (up || down) {
                 int& selection = app.menuPage == 1 ? app.subSelection : app.menuSelection;
                 int count = app.menuPage == 1 ? 3 : 5;
@@ -268,33 +370,37 @@ void frame(void* context) {
         const bool start = keys[SDL_SCANCODE_RETURN] || keys[SDL_SCANCODE_SPACE];
         if (start && !app.menuKeyHeld) {
             app.menuKeyHeld = true;
-            if (!app.menuOptions && app.menuPage == 0) app.menuOptions = true;
+            if (!app.menuOptions && app.menuPage == 0) { app.menuOptions = true; if (app.musicEnabled) setMenuMusic(1); }
             else if (app.menuPage == 0) {
                 if (app.menuSelection == 0) {
+                    setMenuMusic(0);
                     app.inMenu = false;
                     resetGame(app);
                     if (app.musicEnabled) setThemeMusic(1);
                 } else if (app.menuSelection == 4) {
                     app.menuOptions = false;
                     app.menuSelection = 0;
+                    setMenuMusic(0);
                 } else {
                     app.menuPage = app.menuSelection;
                     app.subSelection = 0;
-                    if (app.menuPage == 2 && app.musicEnabled) setRankingMusic(1);
+                    if (app.menuPage == 2) { app.rankingScroll = 0.f; setMenuMusic(0); if (app.musicEnabled) setRankingMusic(1); }
+                    if (app.menuPage == 3) app.creditsScroll = 0.f;
                 }
             } else if (app.menuPage == 1) {
-                if (app.subSelection == 0) app.soundEnabled = !app.soundEnabled;
+                if (app.subSelection == 0) { app.soundEnabled = !app.soundEnabled; writePreference("proyecto1942.sound", app.soundEnabled); }
                 if (app.subSelection == 1) {
                     app.musicEnabled = !app.musicEnabled;
-                    setThemeMusic(app.musicEnabled ? 1 : 0);
+                    writePreference("proyecto1942.music", app.musicEnabled);
+                    setMenuMusic(app.musicEnabled ? 1 : 0);
                 }
                 if (app.subSelection == 2) app.menuPage = 0;
-            } else { if (app.menuPage == 2) setRankingMusic(0); app.menuPage = 0; }
+            } else { if (app.menuPage == 2) setRankingMusic(0); app.menuPage = 0; if (app.musicEnabled) setMenuMusic(1); }
         }
         if (app.inMenu) {
             SDL_SetRenderDrawColor(app.renderer, 0, 0, 0, 255);
             SDL_RenderClear(app.renderer);
-            if (app.menuLogo) {
+            if (app.menuPage == 0 && app.menuLogo) {
                 int w = 0, h = 0;
                 SDL_QueryTexture(app.menuLogo, nullptr, nullptr, &w, &h);
                 if (w > 0 && h > 0) {
@@ -327,52 +433,89 @@ void frame(void* context) {
                     drawText(app, items[i], 175, 350 + i * 50, 24,
                              i == app.menuSelection ? SDL_Color{0, 255, 0, 255} : SDL_Color{255, 255, 255, 255});
                 }
-                if (app.menuPlane) {
-                    SDL_Rect plane{40, 350 + app.menuSelection * 50, 95, 55};
-                    SDL_RenderCopy(app.renderer, app.menuPlane, nullptr, &plane);
-                } else {
-                    drawText(app, ">", 140, 350 + app.menuSelection * 50);
-                }
+                drawMenuPlane(app, 350 + app.menuSelection * 50);
             } else if (app.menuPage == 1) {
-                drawText(app, "CONFIGURACION", 160, 250);
-                drawText(app, std::string(app.subSelection == 0 ? "> " : "  ") +
-                         "SOUNDFX  " + (app.soundEnabled ? "ON" : "OFF"), 160, 350, 24,
-                         app.subSelection == 0 ? SDL_Color{0, 255, 0, 255} : SDL_Color{255, 255, 255, 255});
-                drawText(app, std::string(app.subSelection == 1 ? "> " : "  ") +
-                         "MUSICA   " + (app.musicEnabled ? "ON" : "OFF"), 160, 400, 24,
-                         app.subSelection == 1 ? SDL_Color{0, 255, 0, 255} : SDL_Color{255, 255, 255, 255});
-                drawText(app, std::string(app.subSelection == 2 ? "> " : "  ") +
-                         "VOLVER", 160, 450, 24,
-                         app.subSelection == 2 ? SDL_Color{0, 255, 0, 255} : SDL_Color{255, 255, 255, 255});
+                const char* options[] = {"SOUNDFX", "MUSICA", "VOLVER"};
+                for (int i = 0; i < 3; ++i)
+                    drawText(app, options[i], i == 0 ? 170 : 195, 350 + i * 50, 24,
+                             i == app.subSelection ? SDL_Color{0, 255, 0, 255} : SDL_Color{255, 255, 255, 255});
+                drawMenuPlane(app, 350 + app.subSelection * 50);
+                drawSettingCircle(app, 350, app.soundEnabled);
+                drawSettingCircle(app, 400, app.musicEnabled);
             } else if (app.menuPage == 2) {
-                drawText(app, "RANKING", 225, 270);
-                drawText(app, "MEJOR PUNTAJE: " + std::to_string(app.bestScore), 125, 370);
-                drawText(app, "ESC / ENTER - VOLVER", 120, 550);
+                if (app.rankingBackground) {
+                    SDL_Rect bg{0, 0, kWidth, kHeight};
+                    SDL_RenderCopy(app.renderer, app.rankingBackground, nullptr, &bg);
+                }
+                const int startY = kHeight - static_cast<int>(app.rankingScroll);
+                const SDL_Color magenta{255, 0, 255, 255};
+                drawText(app, "POS  SCORE    DATE       NAME", 45, startY, 24, magenta);
+                for (size_t i = 0; i < 10; ++i) {
+                    const int y = startY + static_cast<int>(i + 1) * 48;
+                    if (y < -40 || y > kHeight) continue;
+                    std::string line = std::to_string(i + 1) + "  ";
+                    if (i < app.ranking.size()) {
+                        const auto& entry = app.ranking[i];
+                        line += std::to_string(entry.score) + "  " + entry.date + "  " + entry.name;
+                    } else line += "---";
+                    drawText(app, line, 45, y, 24, SDL_Color{255, 255, 255, 255});
+                }
+                app.rankingScroll += 0.4f;
+                if (startY + 11 * 48 < 0) app.rankingScroll = 0.f;
             } else {
-                drawText(app, "DESARROLLADO POR:", 95, 275);
-                drawText(app, "Carlos Zubilete Sanchez", 65, 335);
-                drawText(app, "Mariano Belgrano", 65, 385);
-                drawText(app, "Enzo Segovia", 65, 435);
-                drawText(app, "Nicolas Esteban Sosa", 65, 485);
-                drawText(app, "ESC / ENTER - VOLVER", 120, 585);
+                const char* credits[] = {"Desarrolado por:", "Carlos Zubilete Sanchez",
+                                         "Mariano Belgrano", "Enzo Segovia", "Nicolas Esteban Sosa"};
+                for (int i = 0; i < 5; ++i) {
+                    const int y = -250 + i * 50 + static_cast<int>(app.creditsScroll);
+                    if (y > -40 && y < kHeight)
+                        drawText(app, credits[i], 10, y);
+                }
+                app.creditsScroll += 0.6f;
+                if (app.creditsScroll > 1100.f) app.creditsScroll = 0.f;
             }
             SDL_RenderPresent(app.renderer);
             return;
         }
     }
+    if (!app.inMenu && app.confirmExit) {
+        const bool yes = keys[SDL_SCANCODE_Y];
+        const bool no = keys[SDL_SCANCODE_N] || keys[SDL_SCANCODE_ESCAPE];
+        if (!yes && !no) app.exitKeyHeld = false;
+        if (!app.exitKeyHeld && (yes || no)) {
+            app.exitKeyHeld = true;
+            app.confirmExit = false;
+            if (yes) {
+                app.inMenu = true;
+                app.menuPage = 0;
+                app.menuOptions = true;
+                app.menuKeyHeld = true;
+                setThemeMusic(0);
+                if (app.musicEnabled) setMenuMusic(1);
+            }
+        }
+        if (app.confirmExit) {
+            SDL_SetRenderDrawColor(app.renderer, 0, 0, 0, 255);
+            SDL_RenderClear(app.renderer);
+            drawText(app, "SALIR  Y / N", 170, 370);
+            drawText(app, "Y: SI    N: NO", 145, 420);
+            SDL_RenderPresent(app.renderer);
+        }
+        return;
+    }
     if (app.gameOver || app.victory) {
-        app.bestScore = std::max(app.bestScore, app.score);
+        recordScore(app);
         if (keys[SDL_SCANCODE_ESCAPE]) {
             app.inMenu = true;
             app.menuPage = 0;
             app.menuOptions = true;
             app.menuKeyHeld = true;
             setThemeMusic(0);
+            if (app.musicEnabled) setMenuMusic(1);
             return;
         }
         if (keys[SDL_SCANCODE_R]) {
             resetGame(app);
-            if (app.soundEnabled) setThemeMusic(1);
+            if (app.musicEnabled) setThemeMusic(1);
         }
         else {
             SDL_SetRenderDrawColor(app.renderer, 8, 17, 36, 255);
@@ -802,8 +945,12 @@ int main() {
     app.menuLogo = IMG_LoadTexture(app.renderer, "assets/sprites/logo.png");
     app.menuPlane = IMG_LoadTexture(app.renderer, "assets/sprites/Personaje.png");
     app.capcomLogo = IMG_LoadTexture(app.renderer, "assets/sprites/Capcom.jfif");
+    app.rankingBackground = IMG_LoadTexture(app.renderer, "assets/sprites/1942_clock_3x4.png");
     app.menuFont = TTF_OpenFont("assets/fonts/fuente.ttf", 24);
     app.hudReadableFont = TTF_OpenFont("assets/fonts/fuente.ttf", 24);
+    app.musicEnabled = readPreference("proyecto1942.music", 1) != 0;
+    app.soundEnabled = readPreference("proyecto1942.sound", 1) != 0;
+    loadRanking(app);
     if (!app.menuLogo)
         std::cerr << "Menu logo missing: " << IMG_GetError() << '\n';
     emscripten_set_main_loop_arg(frame, &app, 0, 1);
