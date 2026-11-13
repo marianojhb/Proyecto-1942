@@ -44,6 +44,26 @@ EM_JS(void, setThemeMusic, (int enabled), {
     } catch (e) { console.warn('Theme music:', e); }
 });
 
+
+EM_JS(void, setRankingMusic, (int enabled), {
+    try {
+        if (!Module.rankingMusic) {
+            var bytes = FS.readFile('/assets/sounds/themes/04_high_score_entry_stereo.mp3');
+            var audio = new Audio(URL.createObjectURL(new Blob([bytes], {type: 'audio/mpeg'})));
+            audio.loop = true;
+            audio.volume = 0.28;
+            Module.rankingMusic = audio;
+        }
+        if (enabled) {
+            if (Module.themeMusic) Module.themeMusic.pause();
+            Module.rankingMusic.play().catch(function() {});
+        } else {
+            Module.rankingMusic.pause();
+            Module.rankingMusic.currentTime = 0;
+        }
+    } catch (e) { console.warn('Ranking music:', e); }
+});
+
 namespace {
 constexpr int kWidth = 600;
 constexpr int kHeight = 800;
@@ -237,7 +257,7 @@ void frame(void* context) {
         if (!up && !down && !back && !keys[SDL_SCANCODE_RETURN] && !keys[SDL_SCANCODE_SPACE])
             app.menuKeyHeld = false;
         if (!app.menuKeyHeld) {
-            if (back && app.menuPage != 0) { app.menuPage = 0; app.menuKeyHeld = true; }
+            if (back && app.menuPage != 0) { if (app.menuPage == 2) setRankingMusic(0); app.menuPage = 0; app.menuKeyHeld = true; }
             else if (up || down) {
                 int& selection = app.menuPage == 1 ? app.subSelection : app.menuSelection;
                 int count = app.menuPage == 1 ? 3 : 5;
@@ -260,6 +280,7 @@ void frame(void* context) {
                 } else {
                     app.menuPage = app.menuSelection;
                     app.subSelection = 0;
+                    if (app.menuPage == 2 && app.musicEnabled) setRankingMusic(1);
                 }
             } else if (app.menuPage == 1) {
                 if (app.subSelection == 0) app.soundEnabled = !app.soundEnabled;
@@ -268,7 +289,7 @@ void frame(void* context) {
                     setThemeMusic(app.musicEnabled ? 1 : 0);
                 }
                 if (app.subSelection == 2) app.menuPage = 0;
-            } else app.menuPage = 0;
+            } else { if (app.menuPage == 2) setRankingMusic(0); app.menuPage = 0; }
         }
         if (app.inMenu) {
             SDL_SetRenderDrawColor(app.renderer, 0, 0, 0, 255);
