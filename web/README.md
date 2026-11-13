@@ -1,4 +1,4 @@
-# Proyecto-1942 — Phase 9: Original MP3 audio, extra lives and timed progression
+# Proyecto-1942 — Phase 10: Boss encounter refinements
 
 The browser prototype now renders the original player sprite sheet from `assets/sprites/1942-sprites-player.png` and original bullet sprite sheet using SDL2_image and Emscripten. The original SFML desktop code remains untouched.
 
@@ -101,3 +101,15 @@ Refine boss mechanics and enemy waves; improve audio overlap and performance.
 ## Power-up visibility fix
 
 Power-ups now first spawn at five seconds, within the visible screen, with a yellow outline and +1 LIFE label. Subsequent spawns are every 14 seconds. Press P to test without waiting; the browser console logs each spawn.
+
+## Phase 10 verification
+
+- [ ] Boss enters from below at 20 seconds, moving upward at 2.2 px/frame
+- [ ] Boss has 50 HP and a visible HP bar
+- [ ] Boss fires after 28 seconds, once every 60 frames, with up to nine projectiles
+- [ ] Boss flashes when damaged
+- [ ] Destroying boss starts a 90-frame explosion sequence before MISSION COMPLETE
+- [ ] R resets boss state and encounter timers
+- [ ] No new Enemy B spawns while the boss is active
+
+The web port still uses a simplified single-stage enemy model. Test with the browser console open; a local Emscripten build is required to validate the changes.
