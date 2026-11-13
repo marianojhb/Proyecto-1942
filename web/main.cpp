@@ -215,7 +215,8 @@ void frame(void* context) {
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
         if (event.type == SDL_QUIT) app.running = false;
-        if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE)
+        if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE &&
+            !app.inMenu && !app.gameOver && !app.victory)
             app.running = false;
     }
     if (!app.running) {
@@ -264,7 +265,6 @@ void frame(void* context) {
                 if (app.subSelection == 2) app.menuPage = 0;
             } else app.menuPage = 0;
         }
-        app.menuKeyHeld = start;
         if (app.inMenu) {
             SDL_SetRenderDrawColor(app.renderer, 8, 17, 36, 255);
             SDL_RenderClear(app.renderer);
