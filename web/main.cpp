@@ -450,9 +450,10 @@ void frame(void* context) {
         if (app.lives <= 0) app.gameOver = true;
     }
 
-    app.scrollY += kScrollSpeed;
-    if (app.backgroundHeight > 0 && app.scrollY >= app.backgroundHeight)
-        app.scrollY -= app.backgroundHeight;
+    // Advance the map toward smaller source Y so the visible terrain moves downward.
+    app.scrollY -= kScrollSpeed;
+    if (app.backgroundHeight > 0 && app.scrollY < 0.f)
+        app.scrollY += app.backgroundHeight;
     for (auto& explosion : app.explosions) ++explosion.age;
     app.explosions.erase(
         std::remove_if(app.explosions.begin(), app.explosions.end(),
