@@ -1,6 +1,6 @@
-# Proyecto-1942 — Phase 2: Player sprite
+# Proyecto-1942 — Phase 3: Player shooting
 
-The browser prototype now renders the original player sprite sheet from `assets/sprites/1942-sprites-player.png` using SDL2_image and Emscripten. The original SFML desktop code remains untouched.
+The browser prototype now renders the original player sprite sheet from `assets/sprites/1942-sprites-player.png` and original bullet sprite sheet using SDL2_image and Emscripten. The original SFML desktop code remains untouched.
 
 ## Build
 
@@ -18,7 +18,7 @@ Open http://localhost:8080/proyecto1942.html.
 
 - Arrow keys / WASD: move player
 - Left/right: display corresponding original turning sprites
-- Space: one-shot input is logged in browser console (no projectiles yet)
+- Space: fire one bullet per key press (maximum five active bullets, 15-frame reload)
 - Escape: stop game loop
 
 ## Verification
@@ -26,9 +26,11 @@ Open http://localhost:8080/proyecto1942.html.
 - [ ] Build emits HTML, JS, WASM and a `.data` asset package
 - [ ] Browser renders the original plane sprite rather than a blue square
 - [ ] Plane moves and changes appearance on left/right turns
-- [ ] Space logs only once per press (check browser console)
+- [ ] Space fires one sprite-based projectile per key press
+- [ ] Bullets travel upward, disappear offscreen, and never exceed five active shots
+- [ ] Shooting respects the 15-frame reload timer
 - [ ] Desktop SFML files remain unchanged
 
 ## Next
 
-Port the bullet and projectile logic after verifying player rendering and input.
+Add enemies and bullet/enemy collisions after verifying projectile movement.
