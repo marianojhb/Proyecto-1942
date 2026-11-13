@@ -128,6 +128,7 @@ struct App {
     SDL_Texture* effects = nullptr;
     SDL_Texture* bossSheet = nullptr;
     SDL_Texture* menuLogo = nullptr;
+    SDL_Texture* menuPlane = nullptr;
     bool inMenu = true;
     bool menuKeyHeld = false;
     bool menuOptions = false;
@@ -285,8 +286,13 @@ void frame(void* context) {
             } else if (app.menuPage == 0) {
                 const char* items[] = {"JUGAR", "CONFIGURACION", "RANKING", "CREDITOS", "SALIR"};
                 for (int i = 0; i < 5; ++i) {
-                    drawText(app, std::string(i == app.menuSelection ? "> " : "  ") + items[i],
-                             155, 350 + i * 50);
+                    drawText(app, items[i], 175, 350 + i * 50);
+                }
+                if (app.menuPlane) {
+                    SDL_Rect plane{40, 350 + app.menuSelection * 50, 95, 55};
+                    SDL_RenderCopy(app.renderer, app.menuPlane, nullptr, &plane);
+                } else {
+                    drawText(app, ">", 140, 350 + app.menuSelection * 50);
                 }
             } else if (app.menuPage == 1) {
                 drawText(app, "CONFIGURACION", 160, 250);
@@ -755,6 +761,7 @@ int main() {
         return 1;
     }
     app.menuLogo = IMG_LoadTexture(app.renderer, "assets/sprites/logo.png");
+    app.menuPlane = IMG_LoadTexture(app.renderer, "assets/sprites/Personaje.png");
     if (!app.menuLogo)
         std::cerr << "Menu logo missing: " << IMG_GetError() << '\n';
     emscripten_set_main_loop_arg(frame, &app, 0, 1);
