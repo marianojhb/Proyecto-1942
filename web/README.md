@@ -1,4 +1,4 @@
-# Proyecto-1942 — Phase 6: Enemy B and hostile projectiles
+# Proyecto-1942 — Phase 7: Scrolling background and explosions
 
 The browser prototype now renders the original player sprite sheet from `assets/sprites/1942-sprites-player.png` and original bullet sprite sheet using SDL2_image and Emscripten. The original SFML desktop code remains untouched.
 
@@ -58,6 +58,15 @@ Open http://localhost:8080/proyecto1942.html.
 - [ ] Player bullets can destroy Enemy B and increase score
 - [ ] Game over and R restart reset enemy projectiles and aircraft
 
+## Phase 7 verification
+
+- [ ] The original map scrolls continuously behind the aircraft
+- [ ] The map wraps without leaving a blank gap
+- [ ] Destroyed Enemy and Enemy B aircraft display animated explosions
+- [ ] Player damage displays an explosion and preserves invulnerability
+- [ ] Score, lives, shooting, collisions, and restart still work
+- [ ] No browser console errors
+
 ## Next
 
-Scrolling background, explosions, and the rest of the original gameplay systems.
+More original gameplay features, audio, and game progression.
