@@ -48,6 +48,7 @@ constexpr int kBossHeight = 212;
 constexpr int kBossStartFrame = 60 * 20;
 constexpr int kBossFireStartFrame = 60 * 28;
 constexpr int kPowerUpInterval = 60 * 14;
+constexpr int kFirstPowerUpFrame = 60 * 5;
 constexpr int kBossHealth = 12;
 constexpr float kScrollSpeed = 2.3f;
 constexpr int kExplosionFrames = 40;
@@ -112,6 +113,7 @@ struct App {
     SDL_Texture* bossSheet = nullptr;
     bool soundEnabled = true;
     bool mutedKey = false;
+    bool powerUpTestKey = false;
     bool bossActive = false;
     bool victory = false;
     PowerUp powerUp;
@@ -176,6 +178,7 @@ void resetGame(App& app) {
     app.bossY = -kBossHeight;
     app.bossCooldown = 0;
     app.powerUp = PowerUp{};
+    app.powerUpTestKey = false;
 }
 
 void frame(void* context) {
@@ -274,8 +277,17 @@ void frame(void* context) {
     }
 
     ++app.frames;
-    if (app.frames % kPowerUpInterval == 0) {
-        app.powerUp = {randomRange(45, 530), -45.f, std::rand() % 8, true};
+    // First pickup appears before the boss encounter; subsequent pickups every 14 seconds.
+    const bool testPowerUp = keys[SDL_SCANCODE_P];
+    const bool spawnPowerUp = app.frames == kFirstPowerUpFrame ||
+        (app.frames > kFirstPowerUpFrame &&
+         (app.frames - kFirstPowerUpFrame) % kPowerUpInterval == 0) ||
+        (testPowerUp && !app.powerUpTestKey);
+    app.powerUpTestKey = testPowerUp;
+    if (spawnPowerUp) {
+        // Spawn inside the visible playfield to make the collectible easy to spot.
+        app.powerUp = {randomRange(70, 470), 75.f, std::rand() % 8, true};
+        std::cout << "Power-up spawned at frame " << app.frames << std::endl;
     }
     if (app.powerUp.active) {
         app.powerUp.y += kScrollSpeed;
@@ -470,6 +482,10 @@ void frame(void* context) {
         SDL_Rect dest{static_cast<int>(app.powerUp.x),
                       static_cast<int>(app.powerUp.y), 45, 45};
         SDL_RenderCopy(app.renderer, app.projectileSheet, &src, &dest);
+        SDL_SetRenderDrawColor(app.renderer, 255, 220, 40, 255);
+        SDL_Rect outline{dest.x - 3, dest.y - 3, dest.w + 6, dest.h + 6};
+        SDL_RenderDrawRect(app.renderer, &outline);
+        drawText(app, "+1 LIFE", std::max(0, dest.x - 18), std::max(50, dest.y - 30));
     }
     if (app.bossActive) {
         SDL_Rect bossDest{170, static_cast<int>(app.bossY), kBossWidth, kBossHeight};
@@ -485,6 +501,7 @@ void frame(void* context) {
     }
     drawText(app, "SCORE " + std::to_string(app.score), 10, 20);
     drawText(app, "TIME " + std::to_string(app.frames / 60), 350, 55);
+    drawText(app, "POWER-UP: P TO TEST", 10, 735);
     drawText(app, "LIVES " + std::to_string(app.lives), 190, 20);
     drawText(app, app.soundEnabled ? "SOUND ON (M)" : "SOUND OFF (M)", 10, 765);
     if (app.victory) drawText(app, "MISSION COMPLETE - PRESS R", 80, 370);
