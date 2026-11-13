@@ -3,11 +3,28 @@
 #include <SDL_ttf.h>
 #include <string>
 #include <emscripten/emscripten.h>
+#include <emscripten/em_js.h>
 #include <algorithm>
 #include <iostream>
 #include <vector>
 #include <cstdlib>
 #include <cmath>
+
+EM_JS(void, playArcadeTone, (int kind), {
+    try {
+        var ctx = Module.arcadeAudio || (Module.arcadeAudio = new (window.AudioContext || window.webkitAudioContext)());
+        if (ctx.state === 'suspended') ctx.resume();
+        var osc = ctx.createOscillator(), gain = ctx.createGain();
+        var now = ctx.currentTime, duration = kind === 0 ? 0.09 : kind === 1 ? 0.23 : 0.5;
+        osc.type = kind === 0 ? 'square' : 'sawtooth';
+        osc.frequency.setValueAtTime(kind === 0 ? 850 : kind === 1 ? 220 : 420, now);
+        osc.frequency.exponentialRampToValueAtTime(kind === 0 ? 360 : kind === 1 ? 60 : 100, now + duration);
+        gain.gain.setValueAtTime(0.035, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.start(now); osc.stop(now + duration);
+    } catch(e) {}
+});
 
 namespace {
 constexpr int kWidth = 600;
@@ -20,6 +37,12 @@ constexpr const char* kEnemySprite = "assets/sprites/1942-sprites-enemy.png";
 constexpr const char* kFontFile = "assets/fonts/MONOCOQUE_FUENTE.ttf";
 constexpr const char* kBackgroundFile = "assets/sprites/bg-maps-1942.png";
 constexpr const char* kEffectsFile = "assets/sprites/1942-sprites-effects.png";
+constexpr const char* kBossFile = "assets/sprites/1942-sprites-enemy-copia.png";
+constexpr SDL_Rect kBossSource{68, 468, 65, 53};
+constexpr int kBossWidth = 260;
+constexpr int kBossHeight = 212;
+constexpr int kBossTriggerScore = 1500;
+constexpr int kBossHealth = 12;
 constexpr float kScrollSpeed = 2.3f;
 constexpr int kExplosionFrames = 40;
 constexpr int kInvulnerableFrames = 90;
@@ -79,6 +102,14 @@ struct App {
     SDL_Texture* enemySheet = nullptr;
     SDL_Texture* background = nullptr;
     SDL_Texture* effects = nullptr;
+    SDL_Texture* bossSheet = nullptr;
+    bool soundEnabled = true;
+    bool mutedKey = false;
+    bool bossActive = false;
+    bool victory = false;
+    int bossHp = kBossHealth;
+    float bossY = -kBossHeight;
+    int bossCooldown = 0;
     int backgroundHeight = 0;
     float scrollY = 0.f;
     std::vector<ExplosionEffect> explosions;
@@ -131,6 +162,11 @@ void resetGame(App& app) {
     app.frames = 0;
     app.scrollY = 0.f;
     app.explosions.clear();
+    app.bossActive = false;
+    app.victory = false;
+    app.bossHp = kBossHealth;
+    app.bossY = -kBossHeight;
+    app.bossCooldown = 0;
 }
 
 void frame(void* context) {
@@ -147,18 +183,21 @@ void frame(void* context) {
     }
 
     const Uint8* keys = SDL_GetKeyboardState(nullptr);
-    if (app.gameOver) {
+    if (app.gameOver || app.victory) {
         if (keys[SDL_SCANCODE_R]) resetGame(app);
         else {
             SDL_SetRenderDrawColor(app.renderer, 8, 17, 36, 255);
             SDL_RenderClear(app.renderer);
-            drawText(app, "GAME OVER", 190, 310);
+            drawText(app, app.victory ? "MISSION COMPLETE" : "GAME OVER", 145, 310);
             drawText(app, "SCORE " + std::to_string(app.score), 190, 355);
             drawText(app, "PRESS R TO RESTART", 115, 415);
             SDL_RenderPresent(app.renderer);
             return;
         }
     }
+    const bool mute = keys[SDL_SCANCODE_M];
+    if (mute && !app.mutedKey) app.soundEnabled = !app.soundEnabled;
+    app.mutedKey = mute;
     int dx = 0, dy = 0;
     if (keys[SDL_SCANCODE_RIGHT] || keys[SDL_SCANCODE_D]) dx += kSpeed;
     if (keys[SDL_SCANCODE_LEFT] || keys[SDL_SCANCODE_A]) dx -= kSpeed;
@@ -184,6 +223,7 @@ void frame(void* context) {
         // Match Personaje::getBulletOrigin() (96 - 48) / 2 = 24.
         app.bullets.push_back({app.playerX + 24, app.playerY});
         app.reloadFrames = kReloadFrames;
+        if (app.soundEnabled) playArcadeTone(0);
     }
     app.shooting = space;
     for (auto& bullet : app.bullets) bullet.y -= kBulletSpeed;
@@ -213,6 +253,7 @@ void frame(void* context) {
         if (intersects(bulletRect, enemyRect)) {
             it = app.bullets.erase(it);
             app.score += 100;
+            if (app.soundEnabled) playArcadeTone(1);
             app.explosions.push_back({static_cast<int>(enemy.x), static_cast<int>(enemy.y), 0, 2});
             respawnEnemy(enemy);
             enemyRect = {static_cast<int>(enemy.x), static_cast<int>(enemy.y),
@@ -270,6 +311,7 @@ void frame(void* context) {
             if (intersects(rect, bulletRect)) {
                 app.bullets.erase(b);
                 app.score += 100;
+                if (app.soundEnabled) playArcadeTone(1);
                 app.explosions.push_back({static_cast<int>(e->x), static_cast<int>(e->y), 0, 2});
                 hit = true;
                 break;
@@ -277,6 +319,43 @@ void frame(void* context) {
         }
         if (hit) e = app.enemiesB.erase(e);
         else ++e;
+    }
+
+    // Simplified level progression: boss encounter after earning enough points.
+    if (!app.bossActive && app.score >= kBossTriggerScore) {
+        app.bossActive = true;
+        app.enemiesB.clear();
+        app.hostileBullets.clear();
+        app.bossY = -kBossHeight;
+        app.bossHp = kBossHealth;
+    }
+    if (app.bossActive) {
+        app.bossY = std::min(35.f, app.bossY + 2.2f);
+        if (app.bossY >= 35.f && --app.bossCooldown <= 0) {
+            spawnAimedBullet(app.hostileBullets, 280.f, app.bossY + kBossHeight,
+                             app.playerX + spriteWidth / 2.f,
+                             app.playerY + spriteHeight / 2.f);
+            app.bossCooldown = 75;
+        }
+        SDL_Rect bossRect{170, static_cast<int>(app.bossY), kBossWidth, kBossHeight};
+        for (auto b = app.bullets.begin(); b != app.bullets.end();) {
+            SDL_Rect bulletRect{b->x, b->y, kBulletSource.w * kScale,
+                                kBulletSource.h * kScale};
+            if (intersects(bossRect, bulletRect)) {
+                b = app.bullets.erase(b);
+                --app.bossHp;
+                if (app.soundEnabled) playArcadeTone(1);
+                if (app.bossHp <= 0) {
+                    app.bossActive = false;
+                    app.victory = true;
+                    app.score += 1000;
+                    app.hostileBullets.clear();
+                    app.explosions.push_back({220, static_cast<int>(app.bossY) + 60, 0, 3});
+                    if (app.soundEnabled) playArcadeTone(2);
+                    break;
+                }
+            } else ++b;
+        }
     }
 
     SDL_Rect playerRect{app.playerX, app.playerY, spriteWidth, spriteHeight};
@@ -299,6 +378,7 @@ void frame(void* context) {
     if (app.invulnerableFrames == 0 && playerHit) {
         app.explosions.push_back({app.playerX, app.playerY, 0, 3});
         --app.lives;
+        if (app.soundEnabled) playArcadeTone(2);
         app.playerX = (kWidth - 96) / 2 + 2;
         app.playerY = 700;
         app.invulnerableFrames = kInvulnerableFrames;
@@ -357,6 +437,11 @@ void frame(void* context) {
                       src.w * kScale, src.h * kScale};
         SDL_RenderCopy(app.renderer, app.projectileSheet, &src, &dest);
     }
+    if (app.bossActive) {
+        SDL_Rect bossDest{170, static_cast<int>(app.bossY), kBossWidth, kBossHeight};
+        SDL_RenderCopy(app.renderer, app.bossSheet, &kBossSource, &bossDest);
+        drawText(app, "BOSS HP " + std::to_string(app.bossHp), 350, 20);
+    }
     for (const auto& effect : app.explosions) {
         // Original Explosion.cpp advances 0.2 per update and switches every 1.5.
         const int frameIndex = std::min(5, effect.age / 8);
@@ -366,6 +451,8 @@ void frame(void* context) {
     }
     drawText(app, "SCORE " + std::to_string(app.score), 10, 20);
     drawText(app, "LIVES " + std::to_string(app.lives), 190, 20);
+    drawText(app, app.soundEnabled ? "SOUND ON (M)" : "SOUND OFF (M)", 10, 765);
+    if (app.victory) drawText(app, "MISSION COMPLETE - PRESS R", 80, 370);
     if (app.gameOver) drawText(app, "GAME OVER - PRESS R", 105, 370);
     SDL_RenderPresent(app.renderer);
 }
@@ -446,6 +533,11 @@ int main() {
         bgWidth < kWidth || app.backgroundHeight < kHeight) {
         std::cerr << "Cannot load valid background/effects textures: "
                   << IMG_GetError() << '\n';
+        return 1;
+    }
+    app.bossSheet = IMG_LoadTexture(app.renderer, kBossFile);
+    if (!app.bossSheet) {
+        std::cerr << "Cannot load boss sprite: " << IMG_GetError() << '\n';
         return 1;
     }
     emscripten_set_main_loop_arg(frame, &app, 0, 1);
