@@ -131,6 +131,7 @@ struct App {
     SDL_Texture* menuPlane = nullptr;
     SDL_Texture* capcomLogo = nullptr;
     TTF_Font* menuFont = nullptr;
+    TTF_Font* hudReadableFont = nullptr;
     bool inMenu = true;
     bool menuKeyHeld = false;
     bool menuOptions = false;
@@ -172,7 +173,8 @@ struct App {
 };
 
 void drawText(App& app, const std::string& message, int x, int y, int size = 24, SDL_Color color = {255, 255, 255, 255}) {
-    TTF_Font* font = (app.inMenu && app.menuFont) ? app.menuFont : app.font;
+    TTF_Font* font = app.inMenu ? (app.menuFont ? app.menuFont : app.font)
+                                : (app.hudReadableFont ? app.hudReadableFont : app.font);
     if (!font) return;
     SDL_Surface* surface = TTF_RenderUTF8_Blended(font, message.c_str(), color);
     if (!surface) return;
@@ -783,6 +785,7 @@ int main() {
     app.menuPlane = IMG_LoadTexture(app.renderer, "assets/sprites/Personaje.png");
     app.capcomLogo = IMG_LoadTexture(app.renderer, "assets/sprites/Capcom.jfif");
     app.menuFont = TTF_OpenFont("assets/fonts/fuente.ttf", 24);
+    app.hudReadableFont = TTF_OpenFont("assets/fonts/fuente.ttf", 24);
     if (!app.menuLogo)
         std::cerr << "Menu logo missing: " << IMG_GetError() << '\n';
     emscripten_set_main_loop_arg(frame, &app, 0, 1);
