@@ -129,6 +129,8 @@ struct App {
     SDL_Texture* bossSheet = nullptr;
     SDL_Texture* menuLogo = nullptr;
     SDL_Texture* menuPlane = nullptr;
+    SDL_Texture* capcomLogo = nullptr;
+    TTF_Font* menuFont = nullptr;
     bool inMenu = true;
     bool menuKeyHeld = false;
     bool menuOptions = false;
@@ -170,8 +172,9 @@ struct App {
 };
 
 void drawText(App& app, const std::string& message, int x, int y, int size = 24, SDL_Color color = {255, 255, 255, 255}) {
-    if (!app.font) return;
-    SDL_Surface* surface = TTF_RenderUTF8_Blended(app.font, message.c_str(), color);
+    TTF_Font* font = (app.inMenu && app.menuFont) ? app.menuFont : app.font;
+    if (!font) return;
+    SDL_Surface* surface = TTF_RenderUTF8_Blended(font, message.c_str(), color);
     if (!surface) return;
     SDL_Texture* texture = SDL_CreateTextureFromSurface(app.renderer, surface);
     if (texture) {
@@ -272,11 +275,24 @@ void frame(void* context) {
                 int w = 0, h = 0;
                 SDL_QueryTexture(app.menuLogo, nullptr, nullptr, &w, &h);
                 if (w > 0 && h > 0) {
-                    const float scale = std::min(2.f, std::min(500.f / w, 230.f / h));
-                    SDL_Rect logo{(kWidth - static_cast<int>(w * scale)) / 2, 195,
+                    const float scale = std::min(2.f, std::min(440.f / w, 135.f / h));
+                    SDL_Rect logo{(kWidth - static_cast<int>(w * scale)) / 2, 145,
                                   static_cast<int>(w * scale), static_cast<int>(h * scale)};
                     SDL_RenderCopy(app.renderer, app.menuLogo, nullptr, &logo);
                 }
+            }
+            if (app.menuPage == 0) {
+                if (app.capcomLogo) {
+                    int cw = 0, ch = 0;
+                    SDL_QueryTexture(app.capcomLogo, nullptr, nullptr, &cw, &ch);
+                    if (cw > 0 && ch > 0) {
+                        const float cs = std::min(150.f / cw, 65.f / ch);
+                        SDL_Rect cap{(kWidth - static_cast<int>(cw * cs)) / 2, 660,
+                                     static_cast<int>(cw * cs), static_cast<int>(ch * cs)};
+                        SDL_RenderCopy(app.renderer, app.capcomLogo, nullptr, &cap);
+                    }
+                }
+                drawText(app, "@1984 CAPCOM", 220, 730, 24, SDL_Color{235, 235, 235, 255});
             }
             if (app.menuPage == 0 && !app.menuOptions) {
                 if ((SDL_GetTicks() / 500) % 2 == 0)
@@ -765,6 +781,8 @@ int main() {
     }
     app.menuLogo = IMG_LoadTexture(app.renderer, "assets/sprites/logo.png");
     app.menuPlane = IMG_LoadTexture(app.renderer, "assets/sprites/Personaje.png");
+    app.capcomLogo = IMG_LoadTexture(app.renderer, "assets/sprites/Capcom.jfif");
+    app.menuFont = TTF_OpenFont("assets/fonts/fuente.ttf", 24);
     if (!app.menuLogo)
         std::cerr << "Menu logo missing: " << IMG_GetError() << '\n';
     emscripten_set_main_loop_arg(frame, &app, 0, 1);
