@@ -38,6 +38,14 @@ if(NOT EXISTS "${BOSS_SPRITE}")
   message(FATAL_ERROR "Boss sprite not found: ${BOSS_SPRITE}")
 endif()
 
+set(MENU_LOGO "${CMAKE_CURRENT_SOURCE_DIR}/../assets/sprites/logo.png")
+set(THEME_MUSIC "${CMAKE_CURRENT_SOURCE_DIR}/../assets/sounds/themes/01_main_theme_v1_stereo.mp3")
+foreach(ASSET IN ITEMS MENU_LOGO THEME_MUSIC)
+  if(NOT EXISTS "${${ASSET}}")
+    message(FATAL_ERROR "Missing menu asset: ${${ASSET}}")
+  endif()
+endforeach()
+
 set(SFX_SHOT "${CMAKE_CURRENT_SOURCE_DIR}/../assets/sounds/sfx/pew-pew-disparo.mp3")
 set(SFX_EXPLOSION "${CMAKE_CURRENT_SOURCE_DIR}/../assets/sounds/sfx/impact_explosion_03.mp3")
 foreach(ASSET IN ITEMS SFX_SHOT SFX_EXPLOSION)
@@ -65,6 +73,8 @@ target_link_options(proyecto1942 PRIVATE
   "SHELL:--preload-file ${BACKGROUND_SPRITE}@assets/sprites/bg-maps-1942.png"
   "SHELL:--preload-file ${EFFECTS_SPRITE}@assets/sprites/1942-sprites-effects.png"
   "SHELL:--preload-file ${BOSS_SPRITE}@assets/sprites/1942-sprites-enemy-copia.png"
+  "SHELL:--preload-file ${MENU_LOGO}@assets/sprites/logo.png"
+  "SHELL:--preload-file ${THEME_MUSIC}@assets/sounds/themes/01_main_theme_v1_stereo.mp3"
   "SHELL:--preload-file ${SFX_SHOT}@assets/sounds/sfx/pew-pew-disparo.mp3"
   "SHELL:--preload-file ${SFX_EXPLOSION}@assets/sounds/sfx/impact_explosion_03.mp3"
 )
