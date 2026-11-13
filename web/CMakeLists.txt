@@ -25,6 +25,14 @@ if(NOT EXISTS "${HUD_FONT}")
   message(FATAL_ERROR "HUD font not found: ${HUD_FONT}")
 endif()
 
+set(BACKGROUND_SPRITE "${CMAKE_CURRENT_SOURCE_DIR}/../assets/sprites/bg-maps-1942.png")
+set(EFFECTS_SPRITE "${CMAKE_CURRENT_SOURCE_DIR}/../assets/sprites/1942-sprites-effects.png")
+foreach(ASSET IN ITEMS BACKGROUND_SPRITE EFFECTS_SPRITE)
+  if(NOT EXISTS "${${ASSET}}")
+    message(FATAL_ERROR "Missing asset: ${${ASSET}}")
+  endif()
+endforeach()
+
 add_executable(proyecto1942 main.cpp)
 target_compile_features(proyecto1942 PRIVATE cxx_std_17)
 set_target_properties(proyecto1942 PROPERTIES SUFFIX ".html")
@@ -41,4 +49,6 @@ target_link_options(proyecto1942 PRIVATE
   "SHELL:--preload-file ${PROJECTILE_SPRITE}@assets/sprites/1942-sprites-projectiles.png"
   "SHELL:--preload-file ${ENEMY_SPRITE}@assets/sprites/1942-sprites-enemy.png"
   "SHELL:--preload-file ${HUD_FONT}@assets/fonts/MONOCOQUE_FUENTE.ttf"
+  "SHELL:--preload-file ${BACKGROUND_SPRITE}@assets/sprites/bg-maps-1942.png"
+  "SHELL:--preload-file ${EFFECTS_SPRITE}@assets/sprites/1942-sprites-effects.png"
 )
