@@ -1,4 +1,4 @@
-# Proyecto-1942 — Phase 4: Enemy and collisions
+# Proyecto-1942 — Phase 5: HUD, lives, and game over
 
 The browser prototype now renders the original player sprite sheet from `assets/sprites/1942-sprites-player.png` and original bullet sprite sheet using SDL2_image and Emscripten. The original SFML desktop code remains untouched.
 
@@ -19,6 +19,7 @@ Open http://localhost:8080/proyecto1942.html.
 - Arrow keys / WASD: move player
 - Left/right: display corresponding original turning sprites
 - Space: fire one bullet per key press (maximum five active bullets, 15-frame reload)
+- R: restart after game over
 - Escape: stop game loop
 
 ## Verification
@@ -39,6 +40,14 @@ Open http://localhost:8080/proyecto1942.html.
 - Each successful hit adds 100 points (logged to browser console)
 - Desktop SFML sources remain unchanged
 
+## Phase 5 verification
+
+- Score and three initial lives are displayed using the original font
+- Player-enemy contact removes one life and respawns the player
+- Player briefly blinks while invulnerable after damage
+- At zero lives, the game stops and displays GAME OVER
+- R restarts the game with zero score and three lives
+
 ## Next
 
-Add HUD, player damage, and additional enemy types.
+Add enemy bullets, additional enemies, and a more complete scene.
