@@ -10,6 +10,11 @@ if(NOT EXISTS "${PLAYER_SPRITE}")
   message(FATAL_ERROR "Player sprite not found: ${PLAYER_SPRITE}")
 endif()
 
+set(PROJECTILE_SPRITE "${CMAKE_CURRENT_SOURCE_DIR}/../assets/sprites/1942-sprites-projectiles.png")
+if(NOT EXISTS "${PROJECTILE_SPRITE}")
+  message(FATAL_ERROR "Projectile sprite not found: ${PROJECTILE_SPRITE}")
+endif()
+
 add_executable(proyecto1942 main.cpp)
 target_compile_features(proyecto1942 PRIVATE cxx_std_17)
 set_target_properties(proyecto1942 PROPERTIES SUFFIX ".html")
@@ -22,4 +27,5 @@ target_link_options(proyecto1942 PRIVATE
   -sASSERTIONS=1
   -sEXIT_RUNTIME=0
   --preload-file "${PLAYER_SPRITE}@assets/sprites/1942-sprites-player.png"
+  --preload-file "${PROJECTILE_SPRITE}@assets/sprites/1942-sprites-projectiles.png"
 )
