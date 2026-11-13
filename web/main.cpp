@@ -12,6 +12,7 @@
 #include <sstream>
 #include <ctime>
 #include <iomanip>
+#include <cstring>
 
 // Read preloaded MP3 bytes from Emscripten's virtual filesystem.
 EM_JS(void, playOriginalSound, (int kind), {
@@ -266,10 +267,10 @@ void loadRanking(App& app) {
         std::string score, date, name;
         if (std::getline(fields, score, '|') && std::getline(fields, date, '|') &&
             std::getline(fields, name) && !name.empty()) {
-            try {
-                int points = std::stoi(score);
-                if (points >= 0) app.ranking.push_back({points, date, name});
-            } catch (...) {}
+            char* end = nullptr;
+            const long points = std::strtol(score.c_str(), &end, 10);
+            if (end != score.c_str() && *end == '\\0' && points >= 0 && points <= 2147483647L)
+                app.ranking.push_back({static_cast<int>(points), date, name});
         }
     }
     free(raw);
