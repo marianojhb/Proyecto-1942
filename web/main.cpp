@@ -3,6 +3,7 @@
 #include <emscripten/emscripten.h>
 #include <algorithm>
 #include <iostream>
+#include <vector>
 
 namespace {
 constexpr int kWidth = 600;
@@ -10,11 +11,20 @@ constexpr int kHeight = 800;
 constexpr int kSpeed = 5;
 constexpr int kScale = 3;
 constexpr const char* kPlayerSprite = "assets/sprites/1942-sprites-player.png";
+constexpr const char* kProjectileSprite = "assets/sprites/1942-sprites-projectiles.png";
+constexpr SDL_Rect kBulletSource{23, 16, 11, 10};
+constexpr int kBulletSpeed = 7;
+constexpr int kMaxBullets = 5;
+constexpr int kReloadFrames = 15;
+struct Bullet { int x; int y; };
 
 struct App {
     SDL_Window* window = nullptr;
     SDL_Renderer* renderer = nullptr;
     SDL_Texture* spriteSheet = nullptr;
+    SDL_Texture* projectileSheet = nullptr;
+    std::vector<Bullet> bullets;
+    int reloadFrames = 0;
     int playerX = (kWidth - 96) / 2 + 2;
     int playerY = 700;
     bool running = true;
@@ -54,16 +64,35 @@ void frame(void* context) {
     app.playerX = std::clamp(app.playerX, -37, kWidth + 37 - spriteWidth);
     app.playerY = std::clamp(app.playerY, 0, kHeight - spriteHeight);
 
+    // Original Personaje::Shoot() fires once per key press, not continuously.
     const bool space = keys[SDL_SCANCODE_SPACE];
-    if (space && !app.shooting) {
-        std::cout << "Shoot pressed (projectiles not ported yet)" << std::endl;
+    if (space && !app.shooting &&
+        app.bullets.size() < kMaxBullets && app.reloadFrames <= 0) {
+        // Match Personaje::getBulletOrigin() (96 - 48) / 2 = 24.
+        app.bullets.push_back({app.playerX + 24, app.playerY});
+        app.reloadFrames = kReloadFrames;
     }
     app.shooting = space;
+    for (auto& bullet : app.bullets) bullet.y -= kBulletSpeed;
+    app.bullets.erase(
+        std::remove_if(app.bullets.begin(), app.bullets.end(),
+                       [](const Bullet& bullet) {
+                           return bullet.y + kBulletSource.h * kScale < 0;
+                       }),
+        app.bullets.end());
+    if (app.reloadFrames > 0) --app.reloadFrames;
 
     SDL_SetRenderDrawColor(app.renderer, 8, 17, 36, 255);
     SDL_RenderClear(app.renderer);
     SDL_Rect destination{app.playerX, app.playerY, spriteWidth, spriteHeight};
     SDL_RenderCopy(app.renderer, app.spriteSheet, &app.source, &destination);
+    for (const auto& bullet : app.bullets) {
+        SDL_Rect destinationBullet{bullet.x, bullet.y,
+                                  kBulletSource.w * kScale,
+                                  kBulletSource.h * kScale};
+        SDL_RenderCopy(app.renderer, app.projectileSheet,
+                       &kBulletSource, &destinationBullet);
+    }
     SDL_RenderPresent(app.renderer);
 }
 }
@@ -93,6 +122,15 @@ int main() {
     app.spriteSheet = IMG_LoadTexture(app.renderer, kPlayerSprite);
     if (!app.spriteSheet) {
         std::cerr << "Cannot load player sprites: " << IMG_GetError() << '\n';
+        SDL_DestroyRenderer(app.renderer);
+        SDL_DestroyWindow(app.window);
+        SDL_Quit();
+        return 1;
+    }
+    app.projectileSheet = IMG_LoadTexture(app.renderer, kProjectileSprite);
+    if (!app.projectileSheet) {
+        std::cerr << "Cannot load projectile sprites: " << IMG_GetError() << '\\n';
+        SDL_DestroyTexture(app.spriteSheet);
         SDL_DestroyRenderer(app.renderer);
         SDL_DestroyWindow(app.window);
         SDL_Quit();
