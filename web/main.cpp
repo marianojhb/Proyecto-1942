@@ -265,7 +265,7 @@ void frame(void* context) {
         if (intersects(bulletRect, enemyRect)) {
             it = app.bullets.erase(it);
             app.score += 100;
-            if (app.soundEnabled) playArcadeTone(1);
+            if (app.soundEnabled) playOriginalSound(1);
             app.explosions.push_back({static_cast<int>(enemy.x), static_cast<int>(enemy.y), 0, 2});
             respawnEnemy(enemy);
             enemyRect = {static_cast<int>(enemy.x), static_cast<int>(enemy.y),
@@ -339,7 +339,7 @@ void frame(void* context) {
             if (intersects(rect, bulletRect)) {
                 app.bullets.erase(b);
                 app.score += 100;
-                if (app.soundEnabled) playArcadeTone(1);
+                if (app.soundEnabled) playOriginalSound(1);
                 app.explosions.push_back({static_cast<int>(e->x), static_cast<int>(e->y), 0, 2});
                 hit = true;
                 break;
@@ -373,14 +373,14 @@ void frame(void* context) {
             if (intersects(bossRect, bulletRect)) {
                 b = app.bullets.erase(b);
                 --app.bossHp;
-                if (app.soundEnabled) playArcadeTone(1);
+                if (app.soundEnabled) playOriginalSound(1);
                 if (app.bossHp <= 0) {
                     app.bossActive = false;
                     app.victory = true;
                     app.score += 1000;
                     app.hostileBullets.clear();
                     app.explosions.push_back({220, static_cast<int>(app.bossY) + 60, 0, 3});
-                    if (app.soundEnabled) playArcadeTone(2);
+                    if (app.soundEnabled) playOriginalSound(2);
                     break;
                 }
             } else ++b;
@@ -416,7 +416,7 @@ void frame(void* context) {
     if (app.invulnerableFrames == 0 && playerHit) {
         app.explosions.push_back({app.playerX, app.playerY, 0, 3});
         --app.lives;
-        if (app.soundEnabled) playArcadeTone(2);
+        if (app.soundEnabled) playOriginalSound(2);
         app.playerX = (kWidth - 96) / 2 + 2;
         app.playerY = 700;
         app.invulnerableFrames = kInvulnerableFrames;
@@ -547,7 +547,7 @@ int main() {
     }
     app.projectileSheet = IMG_LoadTexture(app.renderer, kProjectileSprite);
     if (!app.projectileSheet) {
-        std::cerr << "Cannot load projectile sprites: " << IMG_GetError() << '\\n';
+        std::cerr << "Cannot load projectile sprites: " << IMG_GetError() << std::endl;
         SDL_DestroyTexture(app.spriteSheet);
         SDL_DestroyRenderer(app.renderer);
         SDL_DestroyWindow(app.window);
