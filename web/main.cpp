@@ -666,9 +666,6 @@ void frame(void* context) {
         SDL_Rect dest{static_cast<int>(app.powerUp.x),
                       static_cast<int>(app.powerUp.y), 45, 45};
         SDL_RenderCopy(app.renderer, app.projectileSheet, &src, &dest);
-        SDL_SetRenderDrawColor(app.renderer, 255, 220, 40, 255);
-        SDL_Rect outline{dest.x - 3, dest.y - 3, dest.w + 6, dest.h + 6};
-        SDL_RenderDrawRect(app.renderer, &outline);
         drawText(app, "+1 LIFE", std::max(0, dest.x - 18), std::max(50, dest.y - 30));
     }
     if (app.bossActive || app.bossDying) {
