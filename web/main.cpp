@@ -516,15 +516,14 @@ void frame(void* context) {
     }
     if (app.bossActive || app.bossDying) {
         SDL_Rect bossDest{170, static_cast<int>(app.bossY), kBossWidth, kBossHeight};
+        // Flash only the opaque sprite pixels, never its rectangular collision bounds.
+        if (app.bossHitFlash > 0)
+            SDL_SetTextureColorMod(app.bossSheet, 255, 110, 110);
         if (!app.bossDying || (app.bossDeathTimer / 5) % 2 == 0) {
             SDL_RenderCopy(app.renderer, app.bossSheet, &kBossSource, &bossDest);
         }
-        if (app.bossHitFlash > 0) {
-            SDL_SetRenderDrawBlendMode(app.renderer, SDL_BLENDMODE_BLEND);
-            SDL_SetRenderDrawColor(app.renderer, 255, 255, 255, 90);
-            SDL_RenderFillRect(app.renderer, &bossDest);
-            SDL_SetRenderDrawBlendMode(app.renderer, SDL_BLENDMODE_NONE);
-        }
+        if (app.bossHitFlash > 0)
+            SDL_SetTextureColorMod(app.bossSheet, 255, 255, 255);
         drawText(app, "BOSS HP " + std::to_string(app.bossHp), 350, 20);
         SDL_Rect bar{340, 52, 245 * std::max(0, app.bossHp) / kBossHealth, 10};
         SDL_SetRenderDrawColor(app.renderer, 230, 65, 65, 255);
