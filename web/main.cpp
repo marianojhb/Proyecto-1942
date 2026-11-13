@@ -267,7 +267,7 @@ void frame(void* context) {
             } else app.menuPage = 0;
         }
         if (app.inMenu) {
-            SDL_SetRenderDrawColor(app.renderer, 8, 17, 36, 255);
+            SDL_SetRenderDrawColor(app.renderer, 0, 0, 0, 255);
             SDL_RenderClear(app.renderer);
             if (app.menuLogo) {
                 int w = 0, h = 0;
