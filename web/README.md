@@ -1,4 +1,4 @@
-# Proyecto-1942 — Phase 5: HUD, lives, and game over
+# Proyecto-1942 — Phase 6: Enemy B and hostile projectiles
 
 The browser prototype now renders the original player sprite sheet from `assets/sprites/1942-sprites-player.png` and original bullet sprite sheet using SDL2_image and Emscripten. The original SFML desktop code remains untouched.
 
@@ -48,6 +48,16 @@ Open http://localhost:8080/proyecto1942.html.
 - At zero lives, the game stops and displays GAME OVER
 - R restarts the game with zero score and three lives
 
+## Phase 6 verification
+
+- [ ] Enemy B aircraft appear periodically (up to three active)
+- [ ] Enemy B moves toward changing targets and fires downward
+- [ ] Original Enemy fires aimed shots toward the player
+- [ ] Enemy projectiles reduce lives on contact
+- [ ] Invulnerability prevents repeated immediate damage
+- [ ] Player bullets can destroy Enemy B and increase score
+- [ ] Game over and R restart reset enemy projectiles and aircraft
+
 ## Next
 
-Add enemy bullets, additional enemies, and a more complete scene.
+Scrolling background, explosions, and the rest of the original gameplay systems.
