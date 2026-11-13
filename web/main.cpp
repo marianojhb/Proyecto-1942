@@ -130,6 +130,12 @@ struct App {
     SDL_Texture* menuLogo = nullptr;
     bool inMenu = true;
     bool menuKeyHeld = false;
+    bool menuOptions = false;
+    int menuSelection = 0;
+    int subSelection = 0;
+    int menuPage = 0; // 0 main, 1 settings, 2 ranking, 3 credits
+    bool musicEnabled = true;
+    int bestScore = 0;
     bool soundEnabled = true;
     bool mutedKey = false;
     bool powerUpTestKey = false;
@@ -219,11 +225,44 @@ void frame(void* context) {
 
     const Uint8* keys = SDL_GetKeyboardState(nullptr);
     if (app.inMenu) {
+        const bool up = keys[SDL_SCANCODE_UP] || keys[SDL_SCANCODE_W];
+        const bool down = keys[SDL_SCANCODE_DOWN] || keys[SDL_SCANCODE_S];
+        const bool back = keys[SDL_SCANCODE_ESCAPE];
+        if (!up && !down && !back && !keys[SDL_SCANCODE_RETURN] && !keys[SDL_SCANCODE_SPACE])
+            app.menuKeyHeld = false;
+        if (!app.menuKeyHeld) {
+            if (back && app.menuPage != 0) { app.menuPage = 0; app.menuKeyHeld = true; }
+            else if (up || down) {
+                int& selection = app.menuPage == 1 ? app.subSelection : app.menuSelection;
+                int count = app.menuPage == 1 ? 3 : 5;
+                if (app.menuPage <= 1) selection = (selection + (up ? count - 1 : 1)) % count;
+                app.menuKeyHeld = true;
+            }
+        }
         const bool start = keys[SDL_SCANCODE_RETURN] || keys[SDL_SCANCODE_SPACE];
         if (start && !app.menuKeyHeld) {
-            app.inMenu = false;
-            resetGame(app);
-            if (app.soundEnabled) setThemeMusic(1);
+            app.menuKeyHeld = true;
+            if (!app.menuOptions && app.menuPage == 0) app.menuOptions = true;
+            else if (app.menuPage == 0) {
+                if (app.menuSelection == 0) {
+                    app.inMenu = false;
+                    resetGame(app);
+                    if (app.musicEnabled) setThemeMusic(1);
+                } else if (app.menuSelection == 4) {
+                    app.menuOptions = false;
+                    app.menuSelection = 0;
+                } else {
+                    app.menuPage = app.menuSelection;
+                    app.subSelection = 0;
+                }
+            } else if (app.menuPage == 1) {
+                if (app.subSelection == 0) app.soundEnabled = !app.soundEnabled;
+                if (app.subSelection == 1) {
+                    app.musicEnabled = !app.musicEnabled;
+                    setThemeMusic(app.musicEnabled ? 1 : 0);
+                }
+                if (app.subSelection == 2) app.menuPage = 0;
+            } else app.menuPage = 0;
         }
         app.menuKeyHeld = start;
         if (app.inMenu) {
@@ -239,16 +278,50 @@ void frame(void* context) {
                     SDL_RenderCopy(app.renderer, app.menuLogo, nullptr, &logo);
                 }
             }
-            if ((SDL_GetTicks() / 500) % 2 == 0)
-                drawText(app, "INSERT COIN", 195, 450);
-            drawText(app, "ENTER / SPACE - JUGAR", 115, 535);
-            drawText(app, "ARROWS / WASD - MOVE", 115, 590);
-            drawText(app, "SPACE - FIRE   M - AUDIO", 80, 630);
+            if (app.menuPage == 0 && !app.menuOptions) {
+                if ((SDL_GetTicks() / 500) % 2 == 0)
+                    drawText(app, "INSERT COIN", 195, 450);
+                drawText(app, "PRESS ENTER", 190, 540);
+            } else if (app.menuPage == 0) {
+                const char* items[] = {"JUGAR", "CONFIGURACION", "RANKING", "CREDITOS", "SALIR"};
+                for (int i = 0; i < 5; ++i) {
+                    drawText(app, std::string(i == app.menuSelection ? "> " : "  ") + items[i],
+                             155, 350 + i * 50);
+                }
+            } else if (app.menuPage == 1) {
+                drawText(app, "CONFIGURACION", 160, 250);
+                drawText(app, std::string(app.subSelection == 0 ? "> " : "  ") +
+                         "SOUNDFX  " + (app.soundEnabled ? "ON" : "OFF"), 160, 350);
+                drawText(app, std::string(app.subSelection == 1 ? "> " : "  ") +
+                         "MUSICA   " + (app.musicEnabled ? "ON" : "OFF"), 160, 400);
+                drawText(app, std::string(app.subSelection == 2 ? "> " : "  ") +
+                         "VOLVER", 160, 450);
+            } else if (app.menuPage == 2) {
+                drawText(app, "RANKING", 225, 270);
+                drawText(app, "MEJOR PUNTAJE: " + std::to_string(app.bestScore), 125, 370);
+                drawText(app, "ESC / ENTER - VOLVER", 120, 550);
+            } else {
+                drawText(app, "DESARROLLADO POR:", 95, 275);
+                drawText(app, "Carlos Zubilete Sanchez", 65, 335);
+                drawText(app, "Mariano Belgrano", 65, 385);
+                drawText(app, "Enzo Segovia", 65, 435);
+                drawText(app, "Nicolas Esteban Sosa", 65, 485);
+                drawText(app, "ESC / ENTER - VOLVER", 120, 585);
+            }
             SDL_RenderPresent(app.renderer);
             return;
         }
     }
     if (app.gameOver || app.victory) {
+        app.bestScore = std::max(app.bestScore, app.score);
+        if (keys[SDL_SCANCODE_ESCAPE]) {
+            app.inMenu = true;
+            app.menuPage = 0;
+            app.menuOptions = true;
+            app.menuKeyHeld = true;
+            setThemeMusic(0);
+            return;
+        }
         if (keys[SDL_SCANCODE_R]) {
             resetGame(app);
             if (app.soundEnabled) setThemeMusic(1);
@@ -266,7 +339,7 @@ void frame(void* context) {
     const bool mute = keys[SDL_SCANCODE_M];
     if (mute && !app.mutedKey) {
         app.soundEnabled = !app.soundEnabled;
-        setThemeMusic(app.soundEnabled ? 1 : 0);
+        setThemeMusic(app.musicEnabled ? 1 : 0);
     }
     app.mutedKey = mute;
     int dx = 0, dy = 0;
