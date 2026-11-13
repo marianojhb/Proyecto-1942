@@ -38,6 +38,14 @@ if(NOT EXISTS "${BOSS_SPRITE}")
   message(FATAL_ERROR "Boss sprite not found: ${BOSS_SPRITE}")
 endif()
 
+set(SFX_SHOT "${CMAKE_CURRENT_SOURCE_DIR}/../assets/sounds/sfx/pew-pew-disparo.mp3")
+set(SFX_EXPLOSION "${CMAKE_CURRENT_SOURCE_DIR}/../assets/sounds/sfx/impact_explosion_03.mp3")
+foreach(ASSET IN ITEMS SFX_SHOT SFX_EXPLOSION)
+  if(NOT EXISTS "${${ASSET}}")
+    message(FATAL_ERROR "Missing original audio: ${${ASSET}}")
+  endif()
+endforeach()
+
 add_executable(proyecto1942 main.cpp)
 target_compile_features(proyecto1942 PRIVATE cxx_std_17)
 set_target_properties(proyecto1942 PROPERTIES SUFFIX ".html")
@@ -57,4 +65,6 @@ target_link_options(proyecto1942 PRIVATE
   "SHELL:--preload-file ${BACKGROUND_SPRITE}@assets/sprites/bg-maps-1942.png"
   "SHELL:--preload-file ${EFFECTS_SPRITE}@assets/sprites/1942-sprites-effects.png"
   "SHELL:--preload-file ${BOSS_SPRITE}@assets/sprites/1942-sprites-enemy-copia.png"
+  "SHELL:--preload-file ${SFX_SHOT}@assets/sounds/sfx/pew-pew-disparo.mp3"
+  "SHELL:--preload-file ${SFX_EXPLOSION}@assets/sounds/sfx/impact_explosion_03.mp3"
 )
