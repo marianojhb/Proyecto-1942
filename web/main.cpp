@@ -688,7 +688,7 @@ void frame(void* context) {
     drawText(app, "SCORE " + std::to_string(app.score), 10, 20);
     drawText(app, "TIME " + std::to_string(app.frames / 60), 350, 55);
     drawText(app, "POWER-UP: P TO TEST", 10, 735);
-    drawText(app, "LIVES " + std::to_string(app.lives), 190, 20);
+    drawText(app, "LIVES " + std::to_string(app.lives), 10, 55);
     drawText(app, app.soundEnabled ? "SOUND ON (M)" : "SOUND OFF (M)", 10, 765);
     if (app.victory) drawText(app, "MISSION COMPLETE - PRESS R", 80, 370);
     if (app.gameOver) drawText(app, "GAME OVER - PRESS R", 105, 370);
