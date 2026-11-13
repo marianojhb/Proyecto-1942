@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <iostream>
 #include <vector>
+#include <cstdlib>
 
 namespace {
 constexpr int kWidth = 600;
@@ -12,17 +13,30 @@ constexpr int kSpeed = 5;
 constexpr int kScale = 3;
 constexpr const char* kPlayerSprite = "assets/sprites/1942-sprites-player.png";
 constexpr const char* kProjectileSprite = "assets/sprites/1942-sprites-projectiles.png";
+constexpr const char* kEnemySprite = "assets/sprites/1942-sprites-enemy.png";
+constexpr SDL_Rect kEnemySource{59, 57, 15, 14};
+constexpr int kEnemyWidth = 45;
+constexpr int kEnemyHeight = 42;
 constexpr SDL_Rect kBulletSource{23, 16, 11, 10};
 constexpr int kBulletSpeed = 7;
 constexpr int kMaxBullets = 5;
 constexpr int kReloadFrames = 15;
 struct Bullet { int x; int y; };
+struct Enemy { float x = 300.f, y = -96.f, vx = 1.5f, vy = 3.2f; };
+void respawnEnemy(Enemy& enemy) { enemy.x = static_cast<float>(std::rand() % kWidth); enemy.y = -96.f; }
+bool intersects(const SDL_Rect& a, const SDL_Rect& b) {
+    return a.x < b.x + b.w && a.x + a.w > b.x &&
+           a.y < b.y + b.h && a.y + a.h > b.y;
+}
 
 struct App {
     SDL_Window* window = nullptr;
     SDL_Renderer* renderer = nullptr;
     SDL_Texture* spriteSheet = nullptr;
     SDL_Texture* projectileSheet = nullptr;
+    SDL_Texture* enemySheet = nullptr;
+    Enemy enemy;
+    int score = 0;
     std::vector<Bullet> bullets;
     int reloadFrames = 0;
     int playerX = (kWidth - 96) / 2 + 2;
@@ -82,6 +96,33 @@ void frame(void* context) {
         app.bullets.end());
     if (app.reloadFrames > 0) --app.reloadFrames;
 
+    // Original Enemy.cpp: side-to-side bounce and 3.2 px/frame descent.
+    auto& enemy = app.enemy;
+    if (enemy.x + kEnemyWidth < kEnemyWidth / 2.f ||
+        enemy.x + kEnemyWidth > kWidth + kEnemyWidth / 2.f) {
+        enemy.vx = -enemy.vx;
+    }
+    if (enemy.y - kEnemyHeight > kHeight) respawnEnemy(enemy);
+    enemy.x += enemy.vx;
+    enemy.y += enemy.vy;
+
+    SDL_Rect enemyRect{static_cast<int>(enemy.x), static_cast<int>(enemy.y),
+                       kEnemyWidth, kEnemyHeight};
+    for (auto it = app.bullets.begin(); it != app.bullets.end(); ) {
+        SDL_Rect bulletRect{it->x, it->y, kBulletSource.w * kScale,
+                            kBulletSource.h * kScale};
+        if (intersects(bulletRect, enemyRect)) {
+            it = app.bullets.erase(it);
+            app.score += 100;
+            respawnEnemy(enemy);
+            enemyRect = {static_cast<int>(enemy.x), static_cast<int>(enemy.y),
+                         kEnemyWidth, kEnemyHeight};
+            std::cout << "Enemy hit! Score: " << app.score << std::endl;
+        } else {
+            ++it;
+        }
+    }
+
     SDL_SetRenderDrawColor(app.renderer, 8, 17, 36, 255);
     SDL_RenderClear(app.renderer);
     SDL_Rect destination{app.playerX, app.playerY, spriteWidth, spriteHeight};
@@ -93,6 +134,9 @@ void frame(void* context) {
         SDL_RenderCopy(app.renderer, app.projectileSheet,
                        &kBulletSource, &destinationBullet);
     }
+    SDL_Rect enemyDestination{static_cast<int>(enemy.x), static_cast<int>(enemy.y),
+                              kEnemyWidth, kEnemyHeight};
+    SDL_RenderCopy(app.renderer, app.enemySheet, &kEnemySource, &enemyDestination);
     SDL_RenderPresent(app.renderer);
 }
 }
@@ -130,6 +174,16 @@ int main() {
     app.projectileSheet = IMG_LoadTexture(app.renderer, kProjectileSprite);
     if (!app.projectileSheet) {
         std::cerr << "Cannot load projectile sprites: " << IMG_GetError() << '\\n';
+        SDL_DestroyTexture(app.spriteSheet);
+        SDL_DestroyRenderer(app.renderer);
+        SDL_DestroyWindow(app.window);
+        SDL_Quit();
+        return 1;
+    }
+    app.enemySheet = IMG_LoadTexture(app.renderer, kEnemySprite);
+    if (!app.enemySheet) {
+        std::cerr << "Cannot load enemy sprites: " << IMG_GetError() << '\n';
+        SDL_DestroyTexture(app.projectileSheet);
         SDL_DestroyTexture(app.spriteSheet);
         SDL_DestroyRenderer(app.renderer);
         SDL_DestroyWindow(app.window);
