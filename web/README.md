@@ -1,4 +1,4 @@
-# Proyecto-1942 — Phase 8: Arcade audio and boss progression
+# Proyecto-1942 — Phase 9: Original MP3 audio, extra lives and timed progression
 
 The browser prototype now renders the original player sprite sheet from `assets/sprites/1942-sprites-player.png` and original bullet sprite sheet using SDL2_image and Emscripten. The original SFML desktop code remains untouched.
 
@@ -19,7 +19,7 @@ Open http://localhost:8080/proyecto1942.html.
 - Arrow keys / WASD: move player
 - Left/right: display corresponding original turning sprites
 - Space: fire one bullet per key press (maximum five active bullets, 15-frame reload)
-- M: toggle synthesized arcade sound effects (audio unlocks after user interaction)
+- M: toggle original MP3 sound effects (audio unlocks after user interaction)
 - R: restart after game over or victory
 - Escape: stop game loop
 
@@ -80,6 +80,19 @@ Open http://localhost:8080/proyecto1942.html.
 
 This phase uses Web Audio synthesized effects, not the original MP3 recordings. Boss activation at 1500 points and 12 HP are browser-port progression rules; the original desktop boss has 50 HP.
 
+## Phase 9 verification
+
+- [ ] Shooting plays original pew-pew-disparo.mp3
+- [ ] Hits and damage play original impact_explosion_03.mp3
+- [ ] M mutes and unmutes sounds
+- [ ] A random power-up appears every 14 seconds and descends
+- [ ] Collecting the power-up adds one life
+- [ ] Boss arrives at 20 seconds, rather than after 1500 points
+- [ ] Boss starts shooting at 28 seconds
+- [ ] R restarts all timers and power-ups
+
+Browser audio requires a user interaction before playback. The original boss uses 50 HP; the browser-port boss retains 12 HP for quicker verification.
+
 ## Next
 
-Original sound asset playback, power-ups, and more faithful stage progression.
+Refine boss mechanics and enemy waves; improve audio overlap and performance.
