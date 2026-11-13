@@ -7,6 +7,7 @@
 #include <iostream>
 #include <vector>
 #include <cstdlib>
+#include <cmath>
 
 namespace {
 constexpr int kWidth = 600;
@@ -21,12 +22,44 @@ constexpr int kInvulnerableFrames = 90;
 constexpr SDL_Rect kEnemySource{59, 57, 15, 14};
 constexpr int kEnemyWidth = 45;
 constexpr int kEnemyHeight = 42;
+constexpr SDL_Rect kEnemyBSource{425, 250, 34, 34};
+constexpr SDL_Rect kEnemyBulletSource{73, 14, 4, 4};
+constexpr int kEnemyBSize = 68;
+constexpr int kMaxEnemyB = 3;
+constexpr int kEnemyBSpawnFrames = 120;
+constexpr int kEnemyBFireFrames = 120;
 constexpr SDL_Rect kBulletSource{23, 16, 11, 10};
 constexpr int kBulletSpeed = 7;
 constexpr int kMaxBullets = 5;
 constexpr int kReloadFrames = 15;
 struct Bullet { int x; int y; };
 struct Enemy { float x = 300.f, y = -96.f, vx = 1.5f, vy = 3.2f; };
+struct EnemyB {
+    float x = 0, y = -96, targetX = 240, targetY = 180;
+    int fireCooldown = kEnemyBFireFrames;
+};
+struct HostileBullet { float x, y, vx, vy; bool aimed; };
+float randomRange(int min, int max) {
+    return static_cast<float>(min + std::rand() % (max - min + 1));
+}
+void chooseTarget(EnemyB& e) {
+    e.targetX = randomRange(34, 500);
+    e.targetY = randomRange(68, 468);
+}
+EnemyB makeEnemyB() {
+    EnemyB e;
+    e.x = randomRange(34, 550);
+    chooseTarget(e);
+    return e;
+}
+void spawnAimedBullet(std::vector<HostileBullet>& shots, float x, float y,
+                      float targetX, float targetY) {
+    float dx = targetX - x, dy = targetY - y;
+    float magnitude = std::sqrt(dx * dx + dy * dy);
+    if (magnitude > 0.001f)
+        shots.push_back({x, y, dx * 3.5f / magnitude, dy * 3.5f / magnitude, true});
+}
+
 void respawnEnemy(Enemy& enemy) { enemy.x = static_cast<float>(std::rand() % kWidth); enemy.y = -96.f; }
 bool intersects(const SDL_Rect& a, const SDL_Rect& b) {
     return a.x < b.x + b.w && a.x + a.w > b.x &&
@@ -40,6 +73,9 @@ struct App {
     SDL_Texture* projectileSheet = nullptr;
     SDL_Texture* enemySheet = nullptr;
     Enemy enemy;
+    std::vector<EnemyB> enemiesB;
+    std::vector<HostileBullet> hostileBullets;
+    int frames = 0;
     TTF_Font* font = nullptr;
     int score = 0;
     int lives = 3;
@@ -80,6 +116,9 @@ void resetGame(App& app) {
     app.reloadFrames = 0;
     app.shooting = false;
     app.enemy = Enemy{};
+    app.enemiesB.clear();
+    app.hostileBullets.clear();
+    app.frames = 0;
 }
 
 void frame(void* context) {
@@ -171,9 +210,79 @@ void frame(void* context) {
         }
     }
 
+    ++app.frames;
+    if (app.frames % kEnemyBSpawnFrames == 0 &&
+        app.enemiesB.size() < kMaxEnemyB) {
+        app.enemiesB.push_back(makeEnemyB());
+    }
+    if (app.frames % 120 == 0) {
+        spawnAimedBullet(app.hostileBullets, enemy.x + 20, enemy.y + 54,
+                         app.playerX + spriteWidth / 2.f,
+                         app.playerY + spriteHeight / 2.f);
+    }
+    for (auto& e : app.enemiesB) {
+        auto approach = [](float& value, float target) {
+            if (value < target) value = std::min(value + 2.f, target);
+            else if (value > target) value = std::max(value - 2.f, target);
+        };
+        approach(e.x, e.targetX);
+        approach(e.y, e.targetY);
+        if (std::abs(e.x - e.targetX) <= 15.f ||
+            std::abs(e.y - e.targetY) <= 15.f) chooseTarget(e);
+        if (--e.fireCooldown <= 0) {
+            // EnemyB uses a downward projectile at 7 pixels per frame.
+            app.hostileBullets.push_back({e.x - 50.f, e.y - 30.f, 0.f, 7.f, false});
+            e.fireCooldown = kEnemyBFireFrames;
+        }
+    }
+    for (auto& shot : app.hostileBullets) {
+        shot.x += shot.vx;
+        shot.y += shot.vy;
+    }
+    app.hostileBullets.erase(
+        std::remove_if(app.hostileBullets.begin(), app.hostileBullets.end(),
+            [](const HostileBullet& shot) {
+                return shot.x < -40 || shot.x > kWidth + 40 ||
+                       shot.y < -120 || shot.y > kHeight + 40;
+            }), app.hostileBullets.end());
+
+    // Player projectiles can also destroy Enemy B aircraft.
+    for (auto e = app.enemiesB.begin(); e != app.enemiesB.end(); ) {
+        SDL_Rect rect{static_cast<int>(e->x), static_cast<int>(e->y),
+                      kEnemyBSize, kEnemyBSize};
+        bool hit = false;
+        for (auto b = app.bullets.begin(); b != app.bullets.end(); ++b) {
+            SDL_Rect bulletRect{b->x, b->y, kBulletSource.w * kScale,
+                                kBulletSource.h * kScale};
+            if (intersects(rect, bulletRect)) {
+                app.bullets.erase(b);
+                app.score += 100;
+                hit = true;
+                break;
+            }
+        }
+        if (hit) e = app.enemiesB.erase(e);
+        else ++e;
+    }
+
     SDL_Rect playerRect{app.playerX, app.playerY, spriteWidth, spriteHeight};
     if (app.invulnerableFrames > 0) --app.invulnerableFrames;
-    if (app.invulnerableFrames == 0 && intersects(playerRect, enemyRect)) {
+    bool playerHit = intersects(playerRect, enemyRect);
+    for (const auto& e : app.enemiesB) {
+        SDL_Rect rect{static_cast<int>(e.x), static_cast<int>(e.y),
+                      kEnemyBSize, kEnemyBSize};
+        if (intersects(playerRect, rect)) playerHit = true;
+    }
+    for (auto it = app.hostileBullets.begin(); it != app.hostileBullets.end(); ) {
+        const int size = it->aimed ? 12 : kBulletSource.w * kScale;
+        const int height = it->aimed ? 12 : kBulletSource.h * kScale;
+        SDL_Rect rect{static_cast<int>(it->x), static_cast<int>(it->y), size, height};
+        if (intersects(playerRect, rect)) {
+            playerHit = true;
+            it = app.hostileBullets.erase(it);
+        } else ++it;
+    }
+    if (app.invulnerableFrames == 0 && playerHit) {
         --app.lives;
         app.playerX = (kWidth - 96) / 2 + 2;
         app.playerY = 700;
@@ -197,6 +306,17 @@ void frame(void* context) {
     SDL_Rect enemyDestination{static_cast<int>(enemy.x), static_cast<int>(enemy.y),
                               kEnemyWidth, kEnemyHeight};
     SDL_RenderCopy(app.renderer, app.enemySheet, &kEnemySource, &enemyDestination);
+    for (const auto& e : app.enemiesB) {
+        SDL_Rect dest{static_cast<int>(e.x), static_cast<int>(e.y),
+                      kEnemyBSize, kEnemyBSize};
+        SDL_RenderCopy(app.renderer, app.enemySheet, &kEnemyBSource, &dest);
+    }
+    for (const auto& shot : app.hostileBullets) {
+        SDL_Rect src = shot.aimed ? kEnemyBulletSource : kBulletSource;
+        SDL_Rect dest{static_cast<int>(shot.x), static_cast<int>(shot.y),
+                      src.w * kScale, src.h * kScale};
+        SDL_RenderCopy(app.renderer, app.projectileSheet, &src, &dest);
+    }
     drawText(app, "SCORE " + std::to_string(app.score), 10, 20);
     drawText(app, "LIVES " + std::to_string(app.lives), 190, 20);
     if (app.gameOver) drawText(app, "GAME OVER - PRESS R", 105, 370);
