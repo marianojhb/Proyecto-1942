@@ -90,3 +90,12 @@ target_link_options(proyecto1942 PRIVATE
   "SHELL:--preload-file ${SFX_SHOT}@assets/sounds/sfx/pew-pew-disparo.mp3"
   "SHELL:--preload-file ${SFX_EXPLOSION}@assets/sounds/sfx/impact_explosion_03.mp3"
 )
+
+# Emscripten generates HTML at link time; add social tags after each build.
+find_package(Python3 REQUIRED COMPONENTS Interpreter)
+add_custom_command(TARGET proyecto1942 POST_BUILD
+  COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/add_social_meta.py" "$<TARGET_FILE:proyecto1942>"
+  COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+          "${MENU_LOGO}" "${CMAKE_CURRENT_BINARY_DIR}/og-image.png"
+  COMMENT "Adding Open Graph metadata and publishing social preview image"
+)
