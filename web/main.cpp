@@ -18,6 +18,10 @@ constexpr const char* kPlayerSprite = "assets/sprites/1942-sprites-player.png";
 constexpr const char* kProjectileSprite = "assets/sprites/1942-sprites-projectiles.png";
 constexpr const char* kEnemySprite = "assets/sprites/1942-sprites-enemy.png";
 constexpr const char* kFontFile = "assets/fonts/MONOCOQUE_FUENTE.ttf";
+constexpr const char* kBackgroundFile = "assets/sprites/bg-maps-1942.png";
+constexpr const char* kEffectsFile = "assets/sprites/1942-sprites-effects.png";
+constexpr float kScrollSpeed = 2.3f;
+constexpr int kExplosionFrames = 40;
 constexpr int kInvulnerableFrames = 90;
 constexpr SDL_Rect kEnemySource{59, 57, 15, 14};
 constexpr int kEnemyWidth = 45;
@@ -33,6 +37,7 @@ constexpr int kBulletSpeed = 7;
 constexpr int kMaxBullets = 5;
 constexpr int kReloadFrames = 15;
 struct Bullet { int x; int y; };
+struct ExplosionEffect { int x, y, age = 0, scale = 2; };
 struct Enemy { float x = 300.f, y = -96.f, vx = 1.5f, vy = 3.2f; };
 struct EnemyB {
     float x = 0, y = -96, targetX = 240, targetY = 180;
@@ -72,6 +77,11 @@ struct App {
     SDL_Texture* spriteSheet = nullptr;
     SDL_Texture* projectileSheet = nullptr;
     SDL_Texture* enemySheet = nullptr;
+    SDL_Texture* background = nullptr;
+    SDL_Texture* effects = nullptr;
+    int backgroundHeight = 0;
+    float scrollY = 0.f;
+    std::vector<ExplosionEffect> explosions;
     Enemy enemy;
     std::vector<EnemyB> enemiesB;
     std::vector<HostileBullet> hostileBullets;
@@ -119,6 +129,8 @@ void resetGame(App& app) {
     app.enemiesB.clear();
     app.hostileBullets.clear();
     app.frames = 0;
+    app.scrollY = 0.f;
+    app.explosions.clear();
 }
 
 void frame(void* context) {
@@ -201,6 +213,7 @@ void frame(void* context) {
         if (intersects(bulletRect, enemyRect)) {
             it = app.bullets.erase(it);
             app.score += 100;
+            app.explosions.push_back({static_cast<int>(enemy.x), static_cast<int>(enemy.y), 0, 2});
             respawnEnemy(enemy);
             enemyRect = {static_cast<int>(enemy.x), static_cast<int>(enemy.y),
                          kEnemyWidth, kEnemyHeight};
@@ -257,6 +270,7 @@ void frame(void* context) {
             if (intersects(rect, bulletRect)) {
                 app.bullets.erase(b);
                 app.score += 100;
+                app.explosions.push_back({static_cast<int>(e->x), static_cast<int>(e->y), 0, 2});
                 hit = true;
                 break;
             }
@@ -283,6 +297,7 @@ void frame(void* context) {
         } else ++it;
     }
     if (app.invulnerableFrames == 0 && playerHit) {
+        app.explosions.push_back({app.playerX, app.playerY, 0, 3});
         --app.lives;
         app.playerX = (kWidth - 96) / 2 + 2;
         app.playerY = 700;
@@ -291,8 +306,33 @@ void frame(void* context) {
         if (app.lives <= 0) app.gameOver = true;
     }
 
+    app.scrollY += kScrollSpeed;
+    if (app.backgroundHeight > 0 && app.scrollY >= app.backgroundHeight)
+        app.scrollY -= app.backgroundHeight;
+    for (auto& explosion : app.explosions) ++explosion.age;
+    app.explosions.erase(
+        std::remove_if(app.explosions.begin(), app.explosions.end(),
+                       [](const ExplosionEffect& e) { return e.age >= kExplosionFrames; }),
+        app.explosions.end());
+
     SDL_SetRenderDrawColor(app.renderer, 8, 17, 36, 255);
     SDL_RenderClear(app.renderer);
+    if (app.background && app.backgroundHeight > 0) {
+        // Wrap the original tall map vertically; draw visible strips only.
+        int remaining = kHeight;
+        int destinationY = 0;
+        int sourceY = (app.backgroundHeight - kHeight +
+                       static_cast<int>(app.scrollY)) % app.backgroundHeight;
+        while (remaining > 0) {
+            int stripHeight = std::min(remaining, app.backgroundHeight - sourceY);
+            SDL_Rect sourceBg{0, sourceY, kWidth, stripHeight};
+            SDL_Rect destBg{0, destinationY, kWidth, stripHeight};
+            SDL_RenderCopy(app.renderer, app.background, &sourceBg, &destBg);
+            remaining -= stripHeight;
+            destinationY += stripHeight;
+            sourceY = 0;
+        }
+    }
     SDL_Rect destination{app.playerX, app.playerY, spriteWidth, spriteHeight};
     if (app.invulnerableFrames == 0 || (app.invulnerableFrames / 6) % 2 == 0)
         SDL_RenderCopy(app.renderer, app.spriteSheet, &app.source, &destination);
@@ -316,6 +356,13 @@ void frame(void* context) {
         SDL_Rect dest{static_cast<int>(shot.x), static_cast<int>(shot.y),
                       src.w * kScale, src.h * kScale};
         SDL_RenderCopy(app.renderer, app.projectileSheet, &src, &dest);
+    }
+    for (const auto& effect : app.explosions) {
+        // Original Explosion.cpp advances 0.2 per update and switches every 1.5.
+        const int frameIndex = std::min(5, effect.age / 8);
+        SDL_Rect src{38 * frameIndex, 110, 33, 32};
+        SDL_Rect dest{effect.x, effect.y, src.w * effect.scale, src.h * effect.scale};
+        SDL_RenderCopy(app.renderer, app.effects, &src, &dest);
     }
     drawText(app, "SCORE " + std::to_string(app.score), 10, 20);
     drawText(app, "LIVES " + std::to_string(app.lives), 190, 20);
@@ -388,6 +435,17 @@ int main() {
         SDL_DestroyWindow(app.window);
         TTF_Quit();
         SDL_Quit();
+        return 1;
+    }
+    app.background = IMG_LoadTexture(app.renderer, kBackgroundFile);
+    app.effects = IMG_LoadTexture(app.renderer, kEffectsFile);
+    int bgWidth = 0;
+    if (!app.background || !app.effects ||
+        SDL_QueryTexture(app.background, nullptr, nullptr, &bgWidth,
+                         &app.backgroundHeight) != 0 ||
+        bgWidth < kWidth || app.backgroundHeight < kHeight) {
+        std::cerr << "Cannot load valid background/effects textures: "
+                  << IMG_GetError() << '\n';
         return 1;
     }
     emscripten_set_main_loop_arg(frame, &app, 0, 1);
