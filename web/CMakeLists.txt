@@ -40,8 +40,10 @@ endif()
 
 set(MENU_LOGO "${CMAKE_CURRENT_SOURCE_DIR}/../assets/sprites/logo.png")
 set(MENU_PLANE "${CMAKE_CURRENT_SOURCE_DIR}/../assets/sprites/Personaje.png")
+set(MENU_FONT "${CMAKE_CURRENT_SOURCE_DIR}/../assets/fonts/fuente.ttf")
+set(CAPCOM_LOGO "${CMAKE_CURRENT_SOURCE_DIR}/../assets/sprites/Capcom.jfif")
 set(THEME_MUSIC "${CMAKE_CURRENT_SOURCE_DIR}/../assets/sounds/themes/01_main_theme_v1_stereo.mp3")
-foreach(ASSET IN ITEMS MENU_LOGO MENU_PLANE THEME_MUSIC)
+foreach(ASSET IN ITEMS MENU_LOGO MENU_PLANE MENU_FONT CAPCOM_LOGO THEME_MUSIC)
   if(NOT EXISTS "${${ASSET}}")
     message(FATAL_ERROR "Missing menu asset: ${${ASSET}}")
   endif()
@@ -63,7 +65,7 @@ target_link_options(proyecto1942 PRIVATE
   -sUSE_SDL=2
   -sUSE_SDL_IMAGE=2
   -sUSE_SDL_TTF=2
-  -sSDL2_IMAGE_FORMATS=['png']
+  -sSDL2_IMAGE_FORMATS=['png','jpg']
   -sALLOW_MEMORY_GROWTH=1
   -sASSERTIONS=1
   -sEXIT_RUNTIME=0
@@ -76,6 +78,8 @@ target_link_options(proyecto1942 PRIVATE
   "SHELL:--preload-file ${BOSS_SPRITE}@assets/sprites/1942-sprites-enemy-copia.png"
   "SHELL:--preload-file ${MENU_LOGO}@assets/sprites/logo.png"
   "SHELL:--preload-file ${MENU_PLANE}@assets/sprites/Personaje.png"
+  "SHELL:--preload-file ${MENU_FONT}@assets/fonts/fuente.ttf"
+  "SHELL:--preload-file ${CAPCOM_LOGO}@assets/sprites/Capcom.jfif"
   "SHELL:--preload-file ${THEME_MUSIC}@assets/sounds/themes/01_main_theme_v1_stereo.mp3"
   "SHELL:--preload-file ${SFX_SHOT}@assets/sounds/sfx/pew-pew-disparo.mp3"
   "SHELL:--preload-file ${SFX_EXPLOSION}@assets/sounds/sfx/impact_explosion_03.mp3"
