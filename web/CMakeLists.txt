@@ -26,6 +26,6 @@ target_link_options(proyecto1942 PRIVATE
   -sALLOW_MEMORY_GROWTH=1
   -sASSERTIONS=1
   -sEXIT_RUNTIME=0
-  --preload-file "${PLAYER_SPRITE}@assets/sprites/1942-sprites-player.png"
-  --preload-file "${PROJECTILE_SPRITE}@assets/sprites/1942-sprites-projectiles.png"
+  "SHELL:--preload-file ${PLAYER_SPRITE}@assets/sprites/1942-sprites-player.png"
+  "SHELL:--preload-file ${PROJECTILE_SPRITE}@assets/sprites/1942-sprites-projectiles.png"
 )
